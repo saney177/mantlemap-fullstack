@@ -1,0 +1,7 @@
+.env
+node_modules/
+# You can add more if needed, for example:
+# *.log
+# npm-debug.log*
+# .DS_Store # For macOS users
+# build/    # If you later use a build process for frontend
