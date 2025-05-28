@@ -38,11 +38,13 @@ mongoose.connect(mongoUri)
 
 // --- Определение Схемы Пользователя (как данные выглядят в базе данных) ---
 const userSchema = new mongoose.Schema({
-    nickname: { type: String, required: true, maxlength: 20 },
+    nickname: { type: String, required: true, maxlength: 30 }, // Увеличил maxlength на случай более длинных никнеймов
     country: { type: String, required: true },
     lat: { type: Number, required: true }, // Широта
     lng: { type: Number, required: true }, // Долгота
-    avatar: { type: String } // Аватар в виде Base64 строки (может быть пустым)
+    avatar: { type: String }, // URL аватара из unavatar.io
+    twitter_username: { type: String, maxlength: 30 }, // Twitter username без '@'
+    twitter_profile_url: { type: String } // Полный URL профиля Twitter
 });
 
 // Создаем модель 'User' на основе схемы
@@ -63,8 +65,8 @@ app.get('/api/users', async (req, res) => {
 
 // 2. POST /api/users: Добавить нового пользователя
 app.post('/api/users', async (req, res) => {
-    // Деструктурируем данные из тела запроса
-    const { nickname, country, lat, lng, avatar } = req.body;
+    // Деструктурируем данные из тела запроса, включая новые поля Twitter
+    const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
 
     // Валидация входных данных
     if (!nickname || !country || lat === undefined || lng === undefined) {
@@ -73,7 +75,15 @@ app.post('/api/users', async (req, res) => {
 
     try {
         // Создаем новый экземпляр пользователя на основе данных
-        const newUser = new User({ nickname, country, lat, lng, avatar });
+        const newUser = new User({
+            nickname,
+            country,
+            lat,
+            lng,
+            avatar,
+            twitter_username,    // Добавляем twitter_username
+            twitter_profile_url  // Добавляем twitter_profile_url
+        });
         await newUser.save(); // Сохраняем нового пользователя в базе данных
         res.status(201).json(newUser); // Отправляем обратно созданный объект пользователя с HTTP статусом 201 (Created)
     } catch (err) {
