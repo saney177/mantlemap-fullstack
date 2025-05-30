@@ -14,7 +14,7 @@ const HCAPTCHA_SECRET_KEY = process.env.HCAPTCHA_SECRET_KEY; // Ваш секретный кл
 app.use(express.json()); // Для парсинга JSON-тел запросов
 app.use(cors({
     origin: 'https://mantlemap.xyz' // Укажите здесь домен вашего фронтенда
-}));// Включаем CORS. В продакшене рекомендуется ограничить домен фронтенда.
+})); // Включаем CORS. В продакшене рекомендуется ограничить домен фронтенда.
 
 // Если ваш Express-сервер находится за прокси (например, Render, Nginx),
 // вам может потребоваться эта строка, чтобы получать реальный IP-адрес клиента.
@@ -26,8 +26,9 @@ mongoose.connect(MONGODB_URI)
     .then(() => console.log('MongoDB connected successfully'))
     .catch(err => {
         console.error('MongoDB connection error:', err);
-        // Можно выйти из процесса, если подключение к БД критично
-        // process.exit(1);
+        // Выходим из процесса, если подключение к БД критично для работы приложения.
+        // Это предотвратит запуск приложения без рабочей базы данных.
+        process.exit(1);
     });
 
 // Определение схемы и модели пользователя
@@ -36,7 +37,7 @@ const userSchema = new mongoose.Schema({
     country: { type: String, required: true },
     lat: { type: Number, required: true },
     lng: { type: Number, required: true },
-    avatar: { type: String }, // URL аватара из unavatar.io
+    avatar: { type: String, default: 'https://via.placeholder.com/50x50.png?text=Anon' }, // URL аватара из unavatar.io, с дефолтным значением
     twitter_username: { type: String, unique: true, sparse: true, trim: true }, // Очищенное имя пользователя Twitter без '@'
     twitter_profile_url: { type: String }
 }, { timestamps: true }); // Добавляет поля createdAt и updatedAt
@@ -68,11 +69,14 @@ app.get('/api/users', async (req, res) => {
 
 // POST: Добавить нового пользователя (с применением ограничителя запросов)
 app.post('/api/users', limiter, async (req, res) => {
-    const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url, hcaptcha_response } = req.body;
+    // Деструктурируем только необходимые поля из req.body.
+    // lat и lng НЕ должны приходить с фронтенда, они определяются на бэкенде.
+    // avatar также будет определен на бэкенде.
+    let { nickname, country, twitter_username, hcaptcha_response } = req.body;
 
     // 1. Валидация на стороне сервера: проверка обязательных полей
-    if (!nickname || !country || !lat || !lng || !hcaptcha_response) {
-        return res.status(400).json({ message: 'Отсутствуют обязательные поля или ответ hCaptcha.' });
+    if (!nickname || !country || !hcaptcha_response) {
+        return res.status(400).json({ message: 'Отсутствуют обязательные поля (никнейм, страна, или ответ hCaptcha).' });
     }
 
     // 2. Верификация hCaptcha
@@ -104,33 +108,40 @@ app.post('/api/users', limiter, async (req, res) => {
     let verifiedTwitterProfileUrl = null;
 
     if (twitter_username) {
-        try {
-            // Выполняем запрос к unavatar.io с бэкенда для верификации и получения URL
-            const unavatarUrl = `https://unavatar.io/twitter/${twitter_username}?size=400`;
-            const unavatarResponse = await axios.get(unavatarUrl, {
-                // Не бросаем ошибку для 4xx статусов, чтобы мы могли обработать плейсхолдеры
-                validateStatus: status => status < 500
-            });
+        // Очищаем имя пользователя Twitter от символа '@', если он присутствует
+        twitter_username = twitter_username.replace(/^@/, '').trim();
 
-            // Проверяем статус и убеждаемся, что это не стандартный плейсхолдер/ошибка от unavatar.io
-            if (unavatarResponse.status === 200 && unavatarResponse.request.res.responseUrl && !unavatarResponse.request.res.responseUrl.includes('placeholder')) {
-                verifiedAvatarUrl = unavatarResponse.request.res.responseUrl;
-                verifiedTwitterProfileUrl = `https://twitter.com/${twitter_username}`; // Воссоздаем URL для консистентности
-                verifiedTwitterUsername = twitter_username; // Убеждаемся, что это очищенное имя пользователя
-            } else {
-                console.warn(`Верификация Twitter-пользователя '${twitter_username}' не удалась или возвращен плейсхолдер. Используется аватар по умолчанию.`);
+        // Проверяем, что после очистки имя пользователя не пустое
+        if (twitter_username) {
+            try {
+                // Выполняем запрос к unavatar.io с бэкенда для верификации и получения URL
+                const unavatarUrl = `https://unavatar.io/twitter/${twitter_username}?size=400`;
+                const unavatarResponse = await axios.get(unavatarUrl, {
+                    // Не бросаем ошибку для 4xx статусов, чтобы мы могли обработать плейсхолдеры
+                    validateStatus: status => status < 500
+                });
+
+                // Проверяем статус и убеждаемся, что это не стандартный плейсхолдер/ошибка от unavatar.io.
+                // Unavatar возвращает 200 даже для несуществующих профилей, но URL будет указывать на их плейсхолдер.
+                if (unavatarResponse.status === 200 && unavatarResponse.request.res.responseUrl && !unavatarResponse.request.res.responseUrl.includes('placeholder')) {
+                    verifiedAvatarUrl = unavatarResponse.request.res.responseUrl;
+                    verifiedTwitterProfileUrl = `https://twitter.com/${twitter_username}`; // Воссоздаем URL для консистентности
+                    verifiedTwitterUsername = twitter_username; // Убеждаемся, что это очищенное имя пользователя
+                } else {
+                    console.warn(`Верификация Twitter-пользователя '${twitter_username}' не удалась или возвращен плейсхолдер. Используется аватар по умолчанию.`);
+                    // verifiedAvatarUrl уже установлен в дефолтный
+                    // verifiedTwitterProfileUrl и verifiedTwitterUsername остаются null
+                }
+            } catch (twitterVerificationError) {
+                console.error(`Ошибка при верификации Twitter-пользователя '${twitter_username}':`, twitterVerificationError.message);
                 // verifiedAvatarUrl уже установлен в дефолтный
                 // verifiedTwitterProfileUrl и verifiedTwitterUsername остаются null
             }
-        } catch (twitterVerificationError) {
-            console.error(`Ошибка при верификации Twitter-пользователя '${twitter_username}':`, twitterVerificationError.message);
-            // verifiedAvatarUrl уже установлен в дефолтный
-            // verifiedTwitterProfileUrl и verifiedTwitterUsername остаются null
         }
     }
 
-    // 4. Валидация данных страны
-    const countryCoords = await getCountryCoords(country);
+    // 4. Валидация данных страны и получение координат
+    const countryCoords = getCountryCoords(country); // Больше не async, так как данные локальны
     if (!countryCoords) {
         return res.status(400).json({ message: 'Предоставлена неверная страна.' });
     }
@@ -140,9 +151,9 @@ app.post('/api/users', limiter, async (req, res) => {
         const newUser = new User({
             nickname,
             country,
-            lat: countryCoords.lat,
-            lng: countryCoords.lng,
-            avatar: verifiedAvatarUrl, // Используем верифицированный аватар
+            lat: countryCoords.lat, // Координаты берутся из верифицированных данных страны
+            lng: countryCoords.lng, // Координаты берутся из верифицированных данных страны
+            avatar: verifiedAvatarUrl, // Используем верифицированный или дефолтный аватар
             twitter_username: verifiedTwitterUsername, // Используем верифицированное имя пользователя
             twitter_profile_url: verifiedTwitterProfileUrl // Используем верифицированный URL профиля
         });
@@ -152,7 +163,6 @@ app.post('/api/users', limiter, async (req, res) => {
         console.error('Ошибка при сохранении пользователя:', error);
         if (error.code === 11000) { // Ошибка дубликата ключа (например, никнейм или twitter_username уже существуют)
             let message = 'Произошла ошибка дубликата. Пользователь с таким никнеймом или Twitter-аккаунтом уже существует.';
-            // Можно добавить более специфичные сообщения, если нужно
             if (error.keyPattern && error.keyPattern.nickname) {
                 message = 'Пользователь с таким никнеймом уже существует.';
             } else if (error.keyPattern && error.keyPattern.twitter_username) {
@@ -166,12 +176,11 @@ app.post('/api/users', limiter, async (req, res) => {
 
 // Вспомогательная функция для получения координат страны на бэкенде.
 // ЭТО КРИТИЧЕСКИ ВАЖНО: Вставьте сюда ВЕСЬ ваш countryData объект из фронтенда!
-async function getCountryCoords(countryName) {
+// Функция теперь синхронна, так как данные локальны и не требуют await.
+function getCountryCoords(countryName) {
     const countryDataBackend = {
         "Afghanistan": { lat: 33.93911, lng: 67.709953 },
         "Albania": { lat: 41.153332, lng: 20.168331 },
-        // ... Вставьте ВСЕ ваши данные стран из `countryData` здесь ...
-        // Например:
         "Algeria": { lat: 28.033886, lng: 1.659626 },
         "Andorra": { lat: 42.546245, lng: 1.601555 },
         "Angola": { lat: -11.202692, lng: 17.873887 },
