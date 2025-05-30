@@ -8,7 +8,7 @@ const rateLimit = require('express-rate-limit'); // Для ограничения запросов по 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
-const HCAPTCHA_SECRET_KEY = process.env.HCAPTCHA_SECRET_KEY; // Ваш секретный ключ hCaptcha
+const HCAPTCHA_SECRET_KEY = process.env.ES_2efad8d365774f438db08572da21f659; // Ваш секретный ключ hCaptcha
 
 // Middleware
 app.use(express.json()); // Для парсинга JSON-тел запросов
