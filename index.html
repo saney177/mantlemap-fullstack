@@ -1,1199 +1,1289 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MantleMap</title>
-  <link href="https://fonts.googleapis.com/css2?family=ABC+Monument+Grotesk:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
-
-  <style>
-    /* Reset and Base Styles */
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: 'ABC Monument Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: linear-gradient(135deg, #0E0E0E 0%, #1a1a1a 100%);
-      color: white;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    /* Header Styling */
-    header {
-      background: linear-gradient(135deg, #15DDB1 0%, #12c4a0 100%);
-      padding: 1rem 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 4px 20px rgba(21, 221, 177, 0.3);
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      width: 100%;
-    }
-
-    .logo-section {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .logo-placeholder {
-      width: 40px;
-      height: 40px;
-      background: #0E0E0E;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #15DDB1;
-      font-weight: bold;
-      font-size: 1.2rem;
-    }
-
-    /* Footer Styling */
-    .footer {
-        text-align: center;
-        padding: 15px;
-        color: #aaa;
-        font-size: 0.9em;
-        background-color: #222;
-        border-top: 1px solid #333;
-        margin-top: auto;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    .footer a {
-        color: #00bfff;
-        text-decoration: none;
-        font-weight: bold;
-    }
-
-    .footer a:hover {
-        text-decoration: underline;
-    }
-
-    /* Header H2 */
-    header h2 {
-      margin: 0;
-      color: #0E0E0E;
-      font-weight: 700;
-      font-size: 1.5rem;
-    }
-
-    .stats {
-      display: flex;
-      gap: 2rem;
-      color: #0E0E0E;
-      font-weight: 500;
-    }
-
-    .stat-item {
-      text-align: center;
-    }
-
-    .stat-number {
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
-
-    .stat-label {
-      font-size: 0.8rem;
-      opacity: 0.8;
-    }
-
-    /* Hero Section */
-    .hero {
-      padding: 4rem 2rem;
-      text-align: center;
-      background: radial-gradient(circle at center, rgba(21, 221, 177, 0.1) 0%, transparent 70%);
-      width: 100%;
-    }
-
-    .hero h1 {
-      font-size: clamp(2rem, 5vw, 4rem);
-      margin-bottom: 1rem;
-      background: linear-gradient(135deg, #15DDB1, #ffffff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      font-weight: 700;
-    }
-
-    .hero p {
-      font-size: 1.25rem;
-      color: #ccc;
-      max-width: 600px;
-      margin: 0 auto;
-      line-height: 1.6;
-    }
-
-    /* Form Section */
-    .form-section {
-      max-width: 600px;
-      margin: 2rem auto;
-      background: linear-gradient(135deg, #1a1a1a, #242424);
-      padding: 2.5rem;
-      border-radius: 1.5rem;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(21, 221, 177, 0.2);
-      position: relative;
-      overflow: hidden;
-      width: calc(100% - 4rem);
-    }
-
-    .form-section::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, #15DDB1, #12c4a0);
-    }
-
-    .form-section h3 {
-      margin-top: 0;
-      margin-bottom: 2rem;
-      color: #15DDB1;
-      font-size: 1.5rem;
-      text-align: center;
-    }
-
-    .form-group {
-      margin-bottom: 1.5rem;
-    }
-
-    .form-section label {
-      display: block;
-      margin-bottom: 0.5rem;
-      color: #15DDB1;
-      font-weight: 500;
-    }
-
-    .form-section input, .form-section select {
-      width: 100%;
-      padding: 1rem;
-      background: #2a2a2a;
-      color: white;
-      border: 2px solid #444;
-      border-radius: 0.75rem;
-      font-size: 1rem;
-      transition: all 0.3s ease;
-    }
-
-    .form-section input:focus, .form-section select:focus {
-      outline: none;
-      border-color: #15DDB1;
-      box-shadow: 0 0 0 3px rgba(21, 221, 177, 0.2);
-    }
-
-    /* Avatar Upload */
-    .avatar-upload-area {
-      border: 2px dashed #444;
-      border-radius: 0.75rem;
-      padding: 2rem;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      background: #2a2a2a;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 150px;
-    }
-
-    .avatar-upload-area:hover {
-      border-color: #15DDB1;
-      background: rgba(21, 221, 177, 0.05);
-    }
-
-    .avatar-upload-area.dragover {
-      border-color: #15DDB1;
-      background: rgba(21, 221, 177, 0.1);
-    }
-
-    .avatar-preview {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      margin: 1rem auto 0.5rem auto;
-      display: none;
-      object-fit: cover;
-      border: 3px solid #15DDB1;
-    }
-
-    .upload-text {
-      color: #ccc;
-      margin-top: 0.5rem;
-    }
-
-    /* Submit Button */
-    .submit-btn {
-      width: 100%;
-      margin-top: 2rem;
-      padding: 1.2rem 2rem;
-      background: linear-gradient(135deg, #15DDB1, #12c4a0);
-      border: none;
-      border-radius: 0.75rem;
-      color: #0E0E0E;
-      font-weight: 700;
-      font-size: 1.1rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .submit-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px rgba(21, 221, 177, 0.4);
-    }
-
-    .submit-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    /* Messages */
-    .loading {
-      display: none;
-      text-align: center;
-      color: #15DDB1;
-      margin: 1rem 0;
-    }
-
-    .success-message {
-      display: none;
-      background: rgba(21, 221, 177, 0.1);
-      border: 1px solid #15DDB1;
-      padding: 1rem;
-      border-radius: 0.5rem;
-      margin: 1rem 0;
-      text-align: center;
-      color: #15DDB1;
-    }
-
-    .error-message {
-      display: none;
-      background: rgba(255, 0, 0, 0.1);
-      border: 1px solid #ff4444;
-      padding: 1rem;
-      border-radius: 0.5rem;
-      margin: 1rem 0;
-      text-align: center;
-      color: #ff4444;
-    }
-
-    /* Map Styles */
-    .map-container {
-      margin: 4rem auto;
-      max-width: 1200px;
-      height: 600px;
-      width: calc(100% - 4rem);
-      border-radius: 1rem;
-      overflow: hidden;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(21, 221, 177, 0.2);
-      flex-shrink: 0;
-      flex-grow: 1;
-    }
-
-    /* Custom Leaflet Marker Icon for Users */
-    .custom-div-icon {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        font-size: 0.8em;
-        font-weight: bold;
-        color: #e0e0e0;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
-        background-color: transparent;
-        border-radius: 50%;
-        position: relative;
-        pointer-events: none;
-    }
-
-    .custom-div-icon .popup-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        border: 2px solid #15DDB1;
-        object-fit: cover;
-        margin-bottom: 2px;
-    }
-
-    .custom-div-icon .user-marker-text {
-        background-color: rgba(0, 0, 0, 0.7);
-        padding: 2px 5px;
-        border-radius: 3px;
-        white-space: nowrap;
-        pointer-events: auto;
-    }
-
-    /* Leaflet Popup Customization */
-    .leaflet-popup-content-wrapper {
-      background: #1a1a1a !important;
-      color: white !important;
-      border-radius: 0.5rem;
-      padding: 0.5rem !important;
-    }
-
-    .leaflet-popup-content {
-      margin: 0 !important;
-      text-align: center;
-      font-size: 0.9rem;
-    }
-
-    .popup-avatar {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      margin-bottom: 0.5rem;
-      border: 2px solid #15DDB1;
-      object-fit: cover;
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .popup-name {
-      font-weight: bold;
-      color: #15DDB1;
-      margin-bottom: 0.25rem;
-      font-size: 1rem;
-    }
-
-    .popup-country {
-      color: #ccc;
-      font-size: 0.8rem;
-    }
-
-    /* Country Search Dropdown */
-    .country-search {
-      position: relative;
-    }
-
-    .country-dropdown {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      background: #2a2a2a;
-      border: 2px solid #444;
-      border-top: none;
-      border-radius: 0 0 0.75rem 0.75rem;
-      max-height: 200px;
-      overflow-y: auto;
-      z-index: 1000;
-      display: none;
-    }
-
-    .country-option {
-      padding: 0.75rem 1rem;
-      cursor: pointer;
-      border-bottom: 1px solid #444;
-    }
-
-    .country-option:last-child {
-      border-bottom: none;
-    }
-
-    .country-option:hover {
-      background: #444;
-    }
-
-    .country-option.selected {
-      background: #15DDB1;
-      color: #0E0E0E;
-    }
-
-    /* Stats Container */
-    .stats-container {
-        background-color: #2a2a2a;
-        padding: 20px;
-        margin: 20px auto;
-        max-width: 600px;
-        border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        color: #e0e0e0;
-        width: calc(100% - 4rem);
-    }
-
-    .stats-container h2,
-    .stats-container h3 {
-        color: #00bfff;
-        margin-top: 0;
-        text-align: center;
-        border-bottom: 1px solid #333;
-        padding-bottom: 10px;
-        margin-bottom: 15px;
-    }
-
-    #country-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    #country-list li {
-        padding: 8px 0;
-        border-bottom: 1px dashed #3a3a3a;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    #country-list li:last-child {
-        border-bottom: none;
-    }
-
-    #country-list li .country-name {
-        font-weight: bold;
-    }
-
-    #country-list li .user-count {
-        background-color: #00bfff;
-        color: #1a1a1a;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 0.8em;
-    }
-
-    .total-users {
-        text-align: right;
-        margin-top: 20px;
-        font-size: 1.1em;
-        font-weight: bold;
-    }
-
-    .total-users #total-users-count {
-        color: #00bfff;
-    }
-
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-      .form-section, .stats-container {
-        margin: 2rem 1rem;
-        padding: 2rem;
-        width: calc(100% - 2rem);
-      }
-
-      .stats {
-        gap: 1rem;
-      }
-
-      .stat-number {
-        font-size: 1.2rem;
-      }
-
-      header {
-        padding: 1rem;
-        flex-direction: column;
-        gap: 1rem;
-      }
-
-      .map-container {
-        margin: 2rem 1rem;
-        height: 400px;
-        width: calc(100% - 2rem);
-      }
-    }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MantleMap</title>
+    <link href="https://fonts.googleapis.com/css2?family=ABC+Monument+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+    <style>
+        /* Reset and Base Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'ABC Monument Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            /* Main background gradient from Mantle brand kit */
+            background: linear-gradient(135deg, #0E0E0E 0%, #1a1a1a 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.6;
+        }
+
+        /* Header Styling */
+        header {
+            /* Mantle Green gradient for header */
+            background: linear-gradient(135deg, #15DDB1 0%, #12c4a0 100%);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 20px rgba(21, 221, 177, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            width: 100%;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-placeholder {
+            width: 40px;
+            height: 40px;
+            background: #0E0E0E; /* Mantle Dark */
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #15DDB1; /* Mantle Green for placeholder text if no image */
+            font-weight: bold;
+            font-size: 1.2rem;
+            overflow: hidden; /* Ensure image fits */
+        }
+
+        .logo-placeholder img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Scale image to fit */
+        }
+
+        header h2 {
+            margin: 0;
+            color: #0E0E0E; /* Mantle Dark */
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+            color: #0E0E0E; /* Mantle Dark */
+            font-weight: 500;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 4rem 2rem;
+            text-align: center;
+            /* Radial gradient with Mantle Green subtle glow */
+            background: radial-gradient(circle at center, rgba(21, 221, 177, 0.1) 0%, transparent 70%);
+            width: 100%;
+        }
+
+        .hero h1 {
+            font-size: clamp(2rem, 5vw, 4rem);
+            margin-bottom: 1rem;
+            /* Text gradient for Mantle branding */
+            background: linear-gradient(135deg, #15DDB1, #ffffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: #ccc;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Form Section */
+        .form-section {
+            max-width: 600px;
+            margin: 2rem auto;
+            background: linear-gradient(135deg, #1a1a1a, #242424); /* Deeper dark background */
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(21, 221, 177, 0.2); /* Subtle Mantle Green border */
+            position: relative;
+            overflow: hidden;
+            width: calc(100% - 4rem);
+            animation: fadeIn 0.8s ease-out; /* Add fade-in animation */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #15DDB1, #12c4a0); /* Top accent stripe */
+        }
+
+        .form-section h3 {
+            margin-top: 0;
+            margin-bottom: 2rem;
+            color: #15DDB1; /* Mantle Green */
+            font-size: 1.5rem;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-section label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #15DDB1; /* Mantle Green */
+            font-weight: 500;
+        }
+
+        .form-section input, .form-section select {
+            width: 100%;
+            padding: 1rem;
+            background: #2a2a2a; /* Darker input background */
+            color: white;
+            border: 2px solid #444;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-section input:focus, .form-section select:focus {
+            outline: none;
+            border-color: #15DDB1; /* Mantle Green on focus */
+            box-shadow: 0 0 0 3px rgba(21, 221, 177, 0.2);
+        }
+
+        /* Twitter Username Section */
+        .twitter-username-area {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: #2a2a2a;
+            border: 2px solid #444;
+            border-radius: 0.75rem;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .twitter-username-area:focus-within {
+            border-color: #15DDB1;
+            box-shadow: 0 0 0 3px rgba(21, 221, 177, 0.2);
+        }
+
+        .twitter-username-area input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            padding: 0.5rem 0;
+            font-size: 1rem;
+        }
+
+        .twitter-username-area input:focus {
+            outline: none;
+            border-color: transparent;
+            box-shadow: none;
+        }
+
+        .twitter-avatar-preview {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #15DDB1; /* Mantle Green avatar border */
+            display: none; /* Hidden by default */
+        }
+
+        .twitter-profile-link {
+            color: #15DDB1; /* Mantle Green for Twitter link */
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            display: block;
+            text-align: center;
+        }
+
+        .twitter-profile-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            margin-top: 2rem;
+            padding: 1.2rem 2rem;
+            background: linear-gradient(135deg, #15DDB1, #12c4a0); /* Mantle Green gradient */
+            border: none;
+            border-radius: 0.75rem;
+            color: #0E0E0E; /* Mantle Dark text on button */
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 5px 15px rgba(21, 221, 177, 0.2); /* Subtle shadow */
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(21, 221, 177, 0.4);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Messages */
+        .loading, .success-message, .error-message {
+            display: none;
+            text-align: center;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            font-weight: 500;
+        }
+
+        .loading {
+            color: #15DDB1; /* Mantle Green */
+        }
+
+        .success-message {
+            background: rgba(21, 221, 177, 0.1);
+            border: 1px solid #15DDB1;
+            color: #15DDB1;
+        }
+
+        .error-message {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+        }
+
+        /* Map Styles */
+        .map-container {
+            margin: 4rem auto;
+            max-width: 1200px;
+            height: 600px;
+            width: calc(100% - 4rem);
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(21, 221, 177, 0.2); /* Subtle Mantle Green border */
+            flex-shrink: 0;
+            flex-grow: 1;
+        }
+
+        /* Leaflet Popup Customization */
+        .leaflet-popup-content-wrapper {
+            background: #1a1a1a !important; /* Dark background */
+            color: white !important;
+            border-radius: 0.5rem;
+            padding: 0.8rem !important; /* Slightly more padding */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            font-family: 'ABC Monument Grotesk', sans-serif; /* Use Mantle font */
+        }
+
+        .leaflet-popup-content {
+            margin: 0 !important;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .popup-avatar {
+            width: 60px; /* Slightly larger avatar */
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 0.75rem;
+            border: 3px solid #15DDB1; /* Thicker Mantle Green border */
+            object-fit: cover;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .popup-name {
+            font-weight: bold;
+            color: #15DDB1; /* Mantle Green */
+            margin-bottom: 0.25rem;
+            font-size: 1.1rem; /* Slightly larger font */
+        }
+
+        .popup-country {
+            color: #ccc;
+            font-size: 0.9rem;
+        }
+
+        .popup-twitter-link {
+            color: #15DDB1; /* Mantle Green */
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.85rem;
+            display: block;
+            margin-top: 0.5rem; /* More space */
+        }
+
+        .popup-twitter-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Country Search Dropdown */
+        .country-search {
+            position: relative;
+        }
+
+        .country-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #2a2a2a;
+            border: 2px solid #444;
+            border-top: none;
+            border-radius: 0 0 0.75rem 0.75rem;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .country-option {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #3a3a3a; /* Darker separator */
+            transition: background-color 0.2s ease;
+        }
+
+        .country-option:last-child {
+            border-bottom: none;
+        }
+
+        .country-option:hover {
+            background: #333; /* Slightly darker hover */
+        }
+
+        .country-option.selected {
+            background: #15DDB1; /* Mantle Green */
+            color: #0E0E0E;      /* Mantle Dark text on selected */
+            font-weight: bold;
+        }
+
+        /* Validation styles */
+        .form-section input.error-border {
+            border-color: #ff4444;
+            box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.2);
+        }
+
+        /* Stats Container */
+        .stats-container {
+            background-color: #1a1a1a; /* Dark background */
+            padding: 30px; /* More padding */
+            margin: 4rem auto; /* Consistent margin */
+            max-width: 600px;
+            border-radius: 1rem; /* More rounded corners */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* Deeper shadow */
+            color: #e0e0e0;
+            width: calc(100% - 4rem);
+            border: 1px solid rgba(21, 221, 177, 0.2); /* Mantle Green border */
+            animation: fadeIn 0.8s ease-out; /* Add fade-in animation */
+        }
+
+        .stats-container h2,
+        .stats-container h3 {
+            color: #15DDB1; /* Mantle Green */
+            margin-top: 0;
+            text-align: center;
+            border-bottom: 1px solid #333;
+            padding-bottom: 15px; /* More padding */
+            margin-bottom: 20px; /* More margin */
+            font-size: 1.8rem; /* Larger heading */
+        }
+
+        #country-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #country-list li {
+            padding: 10px 0; /* More padding */
+            border-bottom: 1px dashed #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.05em;
+        }
+
+        #country-list li:last-child {
+            border-bottom: none;
+        }
+
+        #country-list li .country-name {
+            font-weight: bold;
+        }
+
+        #country-list li .user-count {
+            background-color: #15DDB1; /* Mantle Green */
+            color: #0E0E0E; /* Mantle Dark text */
+            padding: 6px 12px; /* More padding */
+            border-radius: 6px; /* Slightly larger radius */
+            font-size: 0.9em;
+            font-weight: 700;
+        }
+
+        .total-users {
+            text-align: right;
+            margin-top: 25px; /* More margin */
+            font-size: 1.2em; /* Larger font */
+            font-weight: bold;
+            color: #15DDB1; /* Mantle Green */
+        }
+
+        .total-users #total-users-count {
+            color: #15DDB1; /* Mantle Green */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .form-section, .stats-container, .map-container {
+                margin: 2rem 1rem;
+                padding: 2rem;
+                width: calc(100% - 2rem);
+            }
+
+            .stats {
+                gap: 1rem;
+                flex-wrap: wrap; /* Allow stats to wrap on smaller screens */
+                justify-content: center;
+            }
+
+            .stat-number {
+                font-size: 1.2rem;
+            }
+
+            header {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .hero h1 {
+                font-size: clamp(1.8rem, 8vw, 3rem);
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <div class="logo-section">
-      <div class="logo-placeholder">M</div>
-      <h2>MantleMap</h2>
-    </div>
-    <div class="stats">
-      <div class="stat-item">
-        <div class="stat-number" id="userCount">0</div>
-        <div class="stat-label">Users</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-number" id="countryCount">0</div>
-        <div class="stat-label">Countries</div>
-      </div>
-    </div>
-  </header>
-
-  <section class="hero">
-    <h1>Explore the Mantle Community</h1>
-    <p>Join thousands of users from around the world in the decentralized revolution. Add your location, showcase your avatar, and connect with the global Mantle ecosystem.</p>
-  </section>
-
-  <section class="form-section">
-    <h3>Join the Community</h3>
-
-    <div class="form-group">
-      <label for="nickname">Nickname</label>
-      <input type="text" id="nickname" placeholder="Enter your nickname" maxlength="20">
-    </div>
-
-    <div class="form-group">
-      <label for="country">Country</label>
-      <div class="country-search">
-        <input type="text" id="country" placeholder="Search or select your country" autocomplete="off" readonly>
-        <div class="country-dropdown" id="countryDropdown"></div>
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label>Avatar</label>
-      <div class="avatar-upload-area" id="avatarUploadArea">
-        <img id="avatarPreview" class="avatar-preview" alt="Avatar preview">
-        <div class="upload-text">
-          <span id="uploadPrompt"><strong>Click to upload</strong> or drag and drop</span><br>
-          <small>PNG, JPG up to 5MB</small>
+    <header>
+        <div class="logo-section">
+            <div class="logo-placeholder"><img src="image/mantle-mnt-logo.png" width="30" height="30" alt="Mantle Logo"></div>
+            <h2>MantleMap</h2>
         </div>
-      </div>
-      <input type="file" id="avatarInput" accept="image/png, image/jpeg" style="display: none;">
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="userCount">0</div>
+                <div class="stat-label">Users</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="countryCount">0</div>
+                <div class="stat-label">Countries</div>
+            </div>
+        </div>
+    </header>
+
+    <section class="hero">
+        <h1>Explore the Mantle Community</h1>
+        <p>Join thousands of users from around the world in the decentralized revolution. Add your location, showcase your avatar, and connect with the global Mantle ecosystem.</p>
+    </section>
+
+    <section class="form-section">
+        <h3>Join the Community</h3>
+
+        <div class="form-group">
+            <label for="twitterUsername">Twitter Username</label>
+            <div class="twitter-username-area">
+                <img id="twitterAvatarPreview" class="twitter-avatar-preview" alt="Twitter avatar">
+                <input type="text" id="twitterUsername" placeholder="@yourhandle" maxlength="30">
+            </div>
+            <a id="twitterProfileLink" class="twitter-profile-link" href="#" target="_blank" style="display: none;">View Twitter Profile</a>
+        </div>
+
+        <div class="form-group">
+            <label for="country">Country</label>
+            <div class="country-search">
+                <input type="text" id="country" placeholder="Search or select your country" autocomplete="off">
+                <div class="country-dropdown" id="countryDropdown"></div>
+            </div>
+        </div>
+
+        <div class="h-captcha" data-sitekey="daa4f088-c442-471e-96b2-60bc113e9c40"></div>
+
+        <div class="loading" id="loading">
+            <p>Uploading to the blockchain... ⛓️</p>
+        </div>
+
+        <div class="success-message" id="successMessage">
+            <p>Welcome to the Mantle community! 🎉</p>
+        </div>
+
+        <div class="error-message" id="errorMessage">
+            <p id="errorText">Something went wrong. Please try again.</p>
+        </div>
+
+
+        <button class="submit-btn">Join the Map</button>
+    </section>
+
+    <div class="map-container" id="map"></div>
+
+    <div class="stats-container">
+        <h2>Global Stats</h2>
+        <p class="total-users">Total Users: <span id="total-users-count">0</span></p>
+        <h3>Top Countries by Users</h3>
+        <ul id="country-list">
+        </ul>
     </div>
 
-    <div class="loading" id="loading">
-      <p>Uploading to the blockchain... ⛓️</p>
-    </div>
+    <footer class="footer">
+        <p>Created by <a href="https://x.com/saney_web3" target="_blank">@saney_web3</a></p>
+        <p> © All rights reserved. </p>
+    </footer>
 
-    <div class="success-message" id="successMessage">
-      <p>Welcome to the Mantle community! 🎉</p>
-    </div>
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://js.hcaptcha.com/1/api.js?onload=onloadHCaptcha" async defer></script>
+    <script>
+        // GLOBAL VARIABLES
+        let map;
+        let users = []; // This will hold user data fetched from your backend
+        let countryMarkers = {}; // Object to store Leaflet markers for countries (points)
+        let countriesGeoJsonLayer; // Variable to hold the GeoJSON layer for countries
+        let markers; // MarkerClusterGroup for individual user markers
 
-    <div class="error-message" id="errorMessage">
-      <p id="errorText">Something went wrong. Please try again.</p>
-    </div>
+        let selectedCountry = '';
+        let currentTwitterUsername = '';
+        let currentTwitterAvatarUrl = '';
+        let currentTwitterProfileUrl = '';
 
-    <button class="submit-btn" onclick="submitUser()">Join the Map</button>
-  </section>
-
-  <div class="map-container" id="map"></div>
-
-  <div class="stats-container">
-      <h2>Global Stats</h2>
-      <p class="total-users">Total Users: <span id="total-users-count">0</span></p>
-      <h3>Top Countries by Users</h3>
-      <ul id="country-list">
-          </ul>
-  </div>
-
-  <footer class="footer">
-      <p>Crafted <a href="https://x.com/saney_web3" target="_blank">@saney_web3</a></p>
-  </footer>
-
-  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-
-  <script>
-    // GLOBAL VARIABLES
-    let map;
-    let users = []; // This will hold user data fetched from your backend
-    let userMarkers = {}; // Object to store Leaflet markers by user ID (for individual user markers)
-    let countriesGeoJsonLayer; // New variable to hold the GeoJSON layer for countries
-
-    let selectedCountry = '';
-    let selectedAvatarFile = null;
-
-    const nicknameInput = document.getElementById('nickname');
-    const countryInput = document.getElementById('country');
-    const countryDropdown = document.getElementById('countryDropdown');
-    const avatarUploadArea = document.getElementById('avatarUploadArea');
-    const avatarInput = document.getElementById('avatarInput');
-    const avatarPreview = document.getElementById('avatarPreview');
-    const uploadPrompt = document.getElementById('uploadPrompt');
-    const loadingMessage = document.getElementById('loading');
-    const successMessage = document.getElementById('successMessage');
-    const errorMessage = document.getElementById('errorMessage');
-    const errorText = document.getElementById('errorText');
-    const submitBtn = document.querySelector('.submit-btn');
-
-    // Elements for header stats (already in your HTML)
-    const userCountHeaderElement = document.getElementById('userCount');
-    const countryCountHeaderElement = document.getElementById('countryCount');
-
-    // Elements for the new stats-container (added in HTML)
-    const totalUsersCountElement = document.getElementById('total-users-count');
-    const countryListElement = document.getElementById('country-list');
-
-
-    // Country Data (still used for coordinates when adding a new user)
-    const countryData = {
-      "Afghanistan": { lat: 33.93911, lng: 67.709953 }, "Albania": { lat: 41.153332, lng: 20.168331 },
-      "Algeria": { lat: 28.033886, lng: 1.659626 }, "Andorra": { lat: 42.506285, lng: 1.521801 },
-      "Angola": { lat: -11.202692, lng: 17.873887 }, "Antigua and Barbuda": { lat: 17.060816, lng: -61.796428 },
-      "Argentina": { lat: -38.416097, lng: -63.616672 }, "Armenia": { lat: 40.069099, lng: 45.038189 },
-      "Australia": { lat: -25.274398, lng: 133.775136 }, "Austria": { lat: 47.516231, lng: 14.550072 },
-      "Azerbaijan": { lat: 40.143105, lng: 47.576927 }, "Bahamas": { lat: 25.03428, lng: -77.39628 },
-      "Bahrain": { lat: 25.930414, lng: 50.637772 }, "Bangladesh": { lat: 23.684994, lng: 90.356331 },
-      "Barbados": { lat: 13.193887, lng: -59.543198 }, "Belarus": { lat: 53.709807, lng: 27.953389 },
-      "Belgium": { lat: 50.503887, lng: 4.469936 }, "Belize": { lat: 17.189877, lng: -88.49765 },
-      "Benin": { lat: 9.30769, lng: 2.315834 }, "Bhutan": { lat: 27.514162, lng: 90.433601 },
-      "Bolivia": { lat: -16.290154, lng: -63.588653 }, "Bosnia and Herzegovina": { lat: 43.915886, lng: 17.679076 },
-      "Botswana": { lat: -22.328474, lng: 24.684866 }, "Brazil": { lat: -14.235004, lng: -51.92528 },
-      "Brunei": { lat: 4.535277, lng: 114.727669 }, "Bulgaria": { lat: 42.733883, lng: 25.48583 },
-      "Burkina Faso": { lat: 12.238333, lng: -1.561593 }, "Burundi": { lat: -3.373056, lng: 29.918888 },
-      "Cabo Verde": { lat: 16.002082, lng: -24.013197 }, "Cambodia": { lat: 12.565679, lng: 104.990963 },
-      "Cameroon": { lat: 7.369722, lng: 12.354722 }, "Canada": { lat: 56.130366, lng: -106.346771 },
-      "Central African Republic": { lat: 6.611111, lng: 20.939444 }, "Chad": { lat: 15.454166, lng: 18.732207 },
-      "Chile": { lat: -35.675147, lng: -71.542969 }, "China": { lat: 35.86166, lng: 104.195397 },
-      "Colombia": { lat: 4.570868, lng: -74.297333 }, "Comoros": { lat: -11.875001, lng: 43.872219 },
-      "Congo": { lat: -0.228021, lng: 15.827659 }, "Costa Rica": { lat: 9.748917, lng: -83.753428 },
-      "Croatia": { lat: 45.1, lng: 15.2 }, "Cuba": { lat: 21.521757, lng: -77.781167 },
-      "Cyprus": { lat: 35.126413, lng: 33.429859 }, "Czech Republic": { lat: 49.817492, lng: 15.472962 },
-      "Denmark": { lat: 56.26392, lng: 9.501785 }, "Djibouti": { lat: 11.825138, lng: 42.590275 },
-      "Dominica": { lat: 15.414999, lng: -61.370976 }, "Dominican Republic": { lat: 18.735693, lng: -70.162651 },
-      "Ecuador": { lat: -1.831239, lng: -78.183406 }, "Egypt": { lat: 26.820553, lng: 30.802498 },
-      "El Salvador": { lat: 13.794185, lng: -88.89653 }, "Equatorial Guinea": { lat: 1.650801, lng: 10.267895 },
-      "Eritrea": { lat: 15.179384, lng: 39.782334 }, "Estonia": { lat: 58.595272, lng: 25.013607 },
-      "Eswatini": { lat: -26.522503, lng: 31.465866 }, "Ethiopia": { lat: 9.145, lng: 40.489673 },
-      "Fiji": { lat: -16.578193, lng: 179.414413 }, "Finland": { lat: 61.92411, lng: 25.748151 },
-      "France": { lat: 46.227638, lng: 2.213749 }, "Gabon": { lat: -0.803689, lng: 11.609444 },
-      "Gambia": { lat: 13.443182, lng: -15.310139 }, "Georgia": { lat: 42.315407, lng: 43.356892 },
-      "Germany": { lat: 51.165691, lng: 10.451526 }, "Ghana": { lat: 7.946527, lng: -1.023194 },
-      "Greece": { lat: 39.074208, lng: 21.824312 }, "Grenada": { lat: 12.262776, lng: -61.604171 },
-      "Guatemala": { lat: 15.783471, lng: -90.230759 }, "Guinea": { lat: 9.945587, lng: -9.696645 },
-      "Guinea-Bissau": { lat: 11.803749, lng: -15.180413 }, "Guyana": { lat: 4.860416, lng: -58.93018 },
-      "Haiti": { lat: 18.971187, lng: -72.285215 }, "Honduras": { lat: 15.199999, lng: -86.241905 },
-      "Hungary": { lat: 47.162494, lng: 19.503304 }, "Iceland": { lat: 64.963051, lng: -19.020835 },
-      "India": { lat: 20.593684, lng: 78.96288 }, "Indonesia": { lat: -0.789275, lng: 113.921327 },
-      "Iran": { lat: 32.427908, lng: 53.688046 }, "Iraq": { lat: 33.223191, lng: 43.679291 },
-      "Ireland": { lat: 53.41291, lng: -8.24389 }, "Israel": { lat: 31.046051, lng: 34.851612 },
-      "Italy": { lat: 41.87194, lng: 12.56738 }, "Jamaica": { lat: 18.109581, lng: -77.297508 },
-      "Japan": { lat: 36.204824, lng: 138.252924 }, "Jordan": { lat: 30.585164, lng: 36.238414 },
-      "Kazakhstan": { lat: 48.019573, lng: 66.923684 }, "Kenya": { lat: -0.023559, lng: 37.906193 },
-      "Kiribati": { lat: -3.370417, lng: -168.734039 }, "Kuwait": { lat: 29.31166, lng: 47.481766 },
-      "Kyrgyzstan": { lat: 41.20438, lng: 74.766098 }, "Laos": { lat: 19.85627, lng: 102.495496 },
-      "Latvia": { lat: 56.879635, lng: 24.603189 }, "Lebanon": { lat: 33.854721, lng: 35.862285 },
-      "Lesotho": { lat: -29.609988, lng: 28.233608 }, "Liberia": { lat: 6.428055, lng: -9.429499 },
-      "Libya": { lat: 26.3351, lng: 17.228331 }, "Liechtenstein": { lat: 47.166, lng: 9.555373 },
-      "Lithuania": { lat: 55.169438, lng: 23.881275 }, "Luxembourg": { lat: 49.815273, lng: 6.129583 },
-      "Madagascar": { lat: -18.766947, lng: 46.869107 }, "Malawi": { lat: -13.254308, lng: 34.301525 },
-      "Malaysia": { lat: 4.210484, lng: 101.975766 }, "Maldives": { lat: 3.202778, lng: 73.22068 },
-      "Mali": { lat: 17.570692, lng: -3.996166 }, "Malta": { lat: 35.937496, lng: 14.375416 },
-      "Marshall Islands": { lat: 7.131474, lng: 171.184478 }, "Mauritania": { lat: 21.00789, lng: -10.940835 },
-      "Mauritius": { lat: -20.348404, lng: 57.552152 }, "Mexico": { lat: 23.634501, lng: -102.552784 },
-      "Micronesia": { lat: 7.425554, lng: 150.550812 }, "Moldova": { lat: 47.411631, lng: 28.369885 },
-      "Monaco": { lat: 43.750298, lng: 7.412841 }, "Mongolia": { lat: 46.862496, lng: 103.846656 },
-      "Montenegro": { lat: 42.708678, lng: 19.37439 }, "Morocco": { lat: 31.791702, lng: -7.09262 },
-      "Mozambique": { lat: -18.665695, lng: 35.529562 }, "Myanmar": { lat: 21.913965, lng: 95.956223 },
-      "Namibia": { lat: -22.95764, lng: 18.49041 }, "Nauru": { lat: -0.522778, lng: 166.931503 },
-      "Nepal": { lat: 28.394857, lng: 84.124008 }, "Netherlands": { lat: 52.132633, lng: 5.291266 },
-      "New Zealand": { lat: -40.900557, lng: 174.885971 }, "Nicaragua": { lat: 12.865416, lng: -85.207229 },
-      "Niger": { lat: 17.607789, lng: 8.081666 }, "Nigeria": { lat: 9.081999, lng: 8.675277 },
-      "North Korea": { lat: 40.339852, lng: 127.510093 }, "North Macedonia": { lat: 41.608635, lng: 21.745275 },
-      "Norway": { lat: 60.472024, lng: 8.468946 }, "Oman": { lat: 21.512583, lng: 55.923255 },
-      "Pakistan": { lat: 30.375321, lng: 69.345116 }, "Palau": { lat: 7.51498, lng: 134.58252 },
-      "Palestine": { lat: 31.952162, lng: 35.233154 }, "Panama": { lat: 8.537981, lng: -80.782127 },
-      "Papua New Guinea": { lat: -6.314993, lng: 143.95555 }, "Paraguay": { lat: -23.442503, lng: -58.443832 },
-      "Peru": { lat: -9.189967, lng: -75.015152 }, "Philippines": { lat: 12.879721, lng: 121.774017 },
-      "Poland": { lat: 51.919438, lng: 19.145136 }, "Portugal": { lat: 39.399872, lng: -8.224454 },
-      "Qatar": { lat: 25.354826, lng: 51.183884 }, "Romania": { lat: 45.943161, lng: 24.96676 },
-      "Russia": { lat: 61.52401, lng: 105.318756 }, "Rwanda": { lat: -1.940278, lng: 29.873888 },
-      "Saint Kitts and Nevis": { lat: 17.357822, lng: -62.782998 }, "Saint Lucia": { lat: 13.909444, lng: -60.978893 },
-      "Saint Vincent and the Grenadines": { lat: 12.984305, lng: -61.287228 }, "Samoa": { lat: -13.759029, lng: -172.104629 },
-      "San Marino": { lat: 43.94236, lng: 12.457777 }, "Sao Tome and Principe": { lat: 0.18636, lng: 6.613081 },
-      "Saudi Arabia": { lat: 23.885942, lng: 45.079162 }, "Senegal": { lat: 14.497401, lng: -14.452362 },
-      "Serbia": { lat: 44.016521, lng: 21.005859 }, "Seychelles": { lat: -4.679574, lng: 55.491977 },
-      "Sierra Leone": { lat: 8.460555, lng: -11.779889 }, "Singapore": { lat: 1.352083, lng: 103.819836 },
-      "Slovakia": { lat: 48.669026, lng: 19.699024 }, "Slovenia": { lat: 46.151241, lng: 14.995463 },
-      "Solomon Islands": { lat: -9.64571, lng: 160.156194 }, "Somalia": { lat: 5.152149, lng: 46.199616 },
-      "South Africa": { lat: -30.559482, lng: 22.937506 }, "South Korea": { lat: 35.907757, lng: 127.766922 },
-      "South Sudan": { lat: 6.877, lng: 31.307 }, "Spain": { lat: 40.463667, lng: -3.74922 },
-      "Sri Lanka": { lat: 7.873054, lng: 80.771797 }, "Sudan": { lat: 12.862807, lng: 30.217636 },
-      "Suriname": { lat: 3.919305, lng: -56.027783 }, "Sweden": { lat: 60.128161, lng: 18.643501 },
-      "Switzerland": { lat: 46.818188, lng: 8.227512 }, "Syria": { lat: 34.802075, lng: 38.996815 },
-      "Taiwan": { lat: 23.69781, lng: 120.960515 }, "Tajikistan": { lat: 38.861034, lng: 71.276093 },
-      "Tanzania": { lat: -6.369028, lng: 34.888822 }, "Thailand": { lat: 15.870032, lng: 100.992541 },
-      "Timor-Leste": { lat: -8.874217, lng: 125.727539 }, "Togo": { lat: 8.619543, lng: 0.824782 },
-      "Tonga": { lat: -21.178986, lng: -175.198242 }, "Trinidad and Tobago": { lat: 10.691803, lng: -61.222503 },
-      "Tunisia": { lat: 33.886917, lng: 9.537499 }, "Turkey": { lat: 38.963745, lng: 35.243322 },
-      "Turkmenistan": { lat: 38.969719, lng: 59.556278 }, "Tuvalu": { lat: -7.109535, lng: 177.64933 },
-      "Uganda": { lat: 1.373333, lng: 32.290275 }, "Ukraine": { lat: 48.379433, lng: 31.16558 },
-      "United Arab Emirates": { lat: 23.424076, lng: 53.847818 }, "United Kingdom": { lat: 55.378051, lng: -3.435973 },
-      "United States": { lat: 37.09024, lng: -95.712891 }, "Uruguay": { lat: -32.522779, lng: -55.765835 },
-      "Uzbekistan": { lat: 41.377491, lng: 64.585262 }, "Vanuatu": { lat: -15.376706, lng: 166.959158 },
-      "Vatican City": { lat: 41.902916, lng: 12.453389 }, "Venezuela": { lat: 6.42375, lng: -66.58973 },
-      "Vietnam": { lat: 14.058324, lng: 108.277199 }, "Yemen": { lat: 15.552727, lng: 48.516388 },
-      "Zambia": { lat: -13.133897, lng: 27.849332 }, "Zimbabwe": { lat: -19.015438, lng: 29.154857 }
-    };
-    const countries = Object.keys(countryData).sort();
-
-    // --- Helper Functions ---
-    function displayMessage(element, message = '') {
-      hideMessages();
-      if (message) {
-        element.querySelector('p').textContent = message;
-      }
-      element.style.display = 'block';
-    }
-
-    function hideMessages() {
-      loadingMessage.style.display = 'none';
-      successMessage.style.display = 'none';
-      errorMessage.style.display = 'none';
-    }
-
-    function readFileAsDataURL(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = (e) => reject(e);
-        reader.readAsDataURL(file);
-      });
-    }
-
-    // --- Country Search Dropdown Logic ---
-    function showCountryDropdown(filteredCountries) {
-      countryDropdown.innerHTML = '';
-      if (filteredCountries.length === 0 && countryInput.value.trim() !== '') {
-        countryDropdown.style.display = 'none';
-        return;
-      }
-      filteredCountries.forEach(countryName => {
-        const option = document.createElement('div');
-        option.classList.add('country-option');
-        option.textContent = countryName;
-        option.addEventListener('click', () => {
-          countryInput.value = countryName;
-          selectedCountry = countryName;
-          countryDropdown.style.display = 'none';
-        });
-        countryDropdown.appendChild(option);
-      });
-      countryDropdown.style.display = 'block';
-    }
-
-    countryInput.addEventListener('input', function() {
-      const query = this.value.toLowerCase();
-      const filtered = countries.filter(country =>
-        country.toLowerCase().includes(query)
-      );
-      if (query === '') {
-        countryDropdown.style.display = 'none';
-      } else {
-        showCountryDropdown(filtered);
-      }
-      if (!countries.includes(this.value)) {
-        selectedCountry = '';
-      }
-    });
-
-    countryInput.addEventListener('focus', function() {
-      showCountryDropdown(countries);
-    });
-
-    countryInput.setAttribute('readonly', 'readonly');
-    countryInput.addEventListener('click', function() {
-        showCountryDropdown(countries);
-    });
-
-    document.addEventListener('click', function(e) {
-      if (!e.target.closest('.country-search') && e.target !== countryInput) {
-        countryDropdown.style.display = 'none';
-      }
-    });
-
-    // --- Avatar Upload Logic ---
-    avatarUploadArea.addEventListener('click', () => {
-      avatarInput.click();
-    });
-
-    avatarInput.addEventListener('change', function(event) {
-      const file = event.target.files[0];
-      if (file) {
-        if (file.size > 5 * 1024 * 1024) {
-          displayMessage(errorMessage, 'Avatar file size exceeds 5MB. Please choose a smaller image.');
-          selectedAvatarFile = null;
-          avatarPreview.style.display = 'none';
-          avatarPreview.src = '';
-          uploadPrompt.style.display = 'block';
-          return;
+        let hcaptchaReady = false;
+        function onloadHCaptcha() {
+            hcaptchaReady = true;
+            console.log("hCaptcha API loaded and ready.");
         }
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          avatarPreview.src = e.target.result;
-          avatarPreview.style.display = 'block';
-          uploadPrompt.style.display = 'none';
+        const backendBaseUrl = 'https://mantlemap-fullstack-oleg.onrender.com'; // Используем эту базу URL
+
+        const countryInput = document.getElementById('country');
+        const countryDropdown = document.getElementById('countryDropdown');
+        const twitterUsernameElement = document.getElementById('twitterUsername');
+        const twitterAvatarPreviewElement = document.getElementById('twitterAvatarPreview');
+        const twitterProfileLinkElement = document.getElementById('twitterProfileLink');
+
+        const loadingMessage = document.getElementById('loading');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        const submitBtn = document.querySelector('.submit-btn');
+
+        const userCountHeaderElement = document.getElementById('userCount');
+        const countryCountHeaderElement = document.getElementById('countryCount');
+        const totalUsersCountElement = document.getElementById('total-users-count');
+        const countryListElement = document.getElementById('country-list');
+
+        // Country Data (still used for coordinates when adding a new user)
+        const countryData = {
+            "Afghanistan": { lat: 33.93911, lng: 67.709953 }, "Albania": { lat: 41.153332, lng: 20.168331 },
+            "Algeria": { lat: 28.033886, lng: 1.659626 }, "Angola": { lat: -11.202692, lng: 17.873887 },
+            "Antigua and Barbuda": { lat: 17.060816, lng: -61.796428 }, "Argentina": { lat: -38.416097, lng: -63.616672 },
+            "Armenia": { lat: 40.069099, lng: 45.038189 }, "Australia": { lat: -25.274398, lng: 133.775136 },
+            "Austria": { lat: 47.516231, lng: 14.550072 }, "Azerbaijan": { lat: 40.143105, lng: 47.576927 },
+            "Bahamas": { lat: 25.03428, lng: -77.39628 }, "Bahrain": { lat: 25.930414, lng: 50.637772 },
+            "Bangladesh": { lat: 23.684994, lng: 90.356331 }, "Barbados": { lat: 13.193887, lng: -59.543198 },
+            "Belarus": { lat: 53.709807, lng: 27.953389 }, "Belgium": { lat: 50.503887, lng: 4.469936 },
+            "Belize": { lat: 17.189877, lng: -88.49765 }, "Benin": { lat: 9.30769, lng: 2.315834 },
+            "Bhutan": { lat: 27.514162, lng: 90.433601 }, "Bolivia": { lat: -16.290154, lng: -63.588653 },
+            "Bosnia and Herzegovina": { lat: 43.915886, lng: 17.679076 }, "Botswana": { lat: -22.328474, lng: 24.684866 },
+            "Brazil": { lat: -14.235004, lng: -51.92528 }, "Brunei": { lat: 4.535277, lng: 114.727669 },
+            "Bulgaria": { lat: 42.733883, lng: 25.48583 }, "Burkina Faso": { lat: 12.238333, lng: -1.561593 },
+            "Burundi": { lat: -3.373056, lng: 29.918888 }, "Cabo Verde": { lat: 16.002082, lng: -24.013197 },
+            "Cambodia": { lat: 12.565679, lng: 104.990963 }, "Cameroon": { lat: 7.369722, lng: 12.354722 },
+            "Canada": { lat: 56.130366, lng: -106.346771 }, "Central African Republic": { lat: 6.611111, lng: 20.939444 },
+            "Chad": { lat: 15.454166, lng: 18.732207 }, "Chile": { lat: -35.675147, lng: -71.542969 },
+            "China": { lat: 35.86166, lng: 104.195397 }, "Colombia": { lat: 4.570868, lng: -74.297333 },
+            "Comoros": { lat: -11.875001, lng: 43.872219 }, "Congo": { lat: -0.228021, lng: 15.827659 },
+            "Costa Rica": { lat: 9.748917, lng: -83.753428 }, "Croatia": { lat: 45.1, lng: 15.2 },
+            "Cuba": { lat: 21.521757, lng: -77.781167 }, "Cyprus": { lat: 35.126413, lng: 33.429859 },
+            "Czech Republic": { lat: 49.817492, lng: 15.472962 }, "Denmark": { lat: 56.26392, lng: 9.501785 },
+            "Djibouti": { lat: 11.825138, lng: 42.590275 }, "Dominica": { lat: 15.414999, lng: -61.370976 },
+            "Dominican Republic": { lat: 18.735693, lng: -70.162651 }, "Ecuador": { lat: -1.831239, lng: -78.183406 },
+            "Egypt": { lat: 26.820553, lng: 30.802498 }, "El Salvador": { lat: 13.794185, lng: -88.89653 },
+            "Equatorial Guinea": { lat: 1.650801, lng: 10.267895 }, "Eritrea": { lat: 15.179384, lng: 39.782334 },
+            "Estonia": { lat: 58.595272, lng: 25.013607 }, "Eswatini": { lat: -26.522503, lng: 31.465866 },
+            "Ethiopia": { lat: 9.145, lng: 40.489673 }, "Fiji": { lat: -16.578193, lng: 179.414413 },
+            "Finland": { lat: 61.92411, lng: 25.748151 }, "France": { lat: 46.227638, lng: 2.213749 },
+            "Gabon": { lat: -0.803689, lng: 11.609444 }, "Gambia": { lat: 13.443182, lng: -15.310139 },
+            "Georgia": { lat: 42.315407, lng: 43.356892 }, "Germany": { lat: 51.165691, lng: 10.451526 },
+            "Ghana": { lat: 7.946527, lng: -1.023194 }, "Greece": { lat: 39.074208, lng: 21.824312 },
+            "Grenada": { lat: 12.262776, lng: -61.604171 }, "Guatemala": { lat: 15.783471, lng: -90.230759 },
+            "Guinea": { lat: 9.945587, lng: -9.696645 }, "Guinea-Bissau": { lat: 11.803749, lng: -15.180413 },
+            "Guyana": { lat: 4.860416, lng: -58.93018 }, "Haiti": { lat: 18.971187, lng: -72.285215 },
+            "Honduras": { lat: 15.199999, lng: -86.241905 }, "Hungary": { lat: 47.162494, lng: 19.503304 },
+            "Iceland": { lat: 64.963051, lng: -19.020835 }, "India": { lat: 20.593684, lng: 78.96288 },
+            "Indonesia": { lat: -0.789275, lng: 113.921327 }, "Iran": { lat: 32.427908, lng: 53.688046 },
+            "Iraq": { lat: 33.223191, lng: 43.679291 }, "Ireland": { lat: 53.41291, lng: -8.24389 },
+            "Israel": { lat: 31.046051, lng: 34.851612 }, "Italy": { lat: 41.87194, lng: 12.56738 },
+            "Jamaica": { lat: 18.109581, lng: -77.297508 }, "Japan": { lat: 36.204824, lng: 138.252924 },
+            "Jordan": { lat: 30.585164, lng: 36.238414 }, "Kazakhstan": { lat: 48.019573, lng: 66.923684 },
+            "Kenya": { lat: -0.023559, lng: 37.906193 }, "Kiribati": { lat: -3.370417, lng: -168.734039 },
+            "Kuwait": { lat: 29.31166, lng: 47.481766 }, "Kyrgyzstan": { lat: 41.20438, lng: 74.766098 },
+            "Laos": { lat: 19.85627, lng: 102.495496 }, "Latvia": { lat: 56.879635, lng: 24.603189 },
+            "Lebanon": { lat: 33.854721, lng: 35.862285 }, "Lesotho": { lat: -29.609988, lng: 28.233608 },
+            "Liberia": { lat: 6.428055, lng: -9.429499 }, "Libya": { lat: 26.3351, lng: 17.228331 },
+            "Liechtenstein": { lat: 47.166, lng: 9.555373 }, "Lithuania": { lat: 55.169438, lng: 23.881275 },
+            "Luxembourg": { lat: 49.815273, lng: 6.129583 }, "Madagascar": { lat: -18.766947, lng: 46.869107 },
+            "Malawi": { lat: -13.254308, lng: 34.301525 }, "Malaysia": { lat: 4.210484, lng: 101.975766 },
+            "Maldives": { lat: 3.202778, lng: 73.22068 }, "Mali": { lat: 17.570692, lng: -3.996166 },
+            "Malta": { lat: 35.937496, lng: 14.375416 }, "Marshall Islands": { lat: 7.131474, lng: 171.184478 },
+            "Mauritania": { lat: 21.00789, lng: -10.940835 }, "Mauritius": { lat: -20.348404, lng: 57.552152 },
+            "Mexico": { lat: 23.634501, lng: -102.552784 }, "Micronesia": { lat: 7.425554, lng: 150.550812 },
+            "Moldova": { lat: 47.411631, lng: 28.369885 }, "Monaco": { lat: 43.750298, lng: 7.412841 },
+            "Mongolia": { lat: 46.862496, lng: 103.846656 }, "Montenegro": { lat: 42.708678, lng: 19.37439 },
+            "Morocco": { lat: 31.791702, lng: -7.09262 }, "Mozambique": { lat: -18.665695, lng: 35.529562 },
+            "Myanmar": { lat: 21.913965, lng: 95.956223 }, "Namibia": { lat: -22.95764, lng: 18.49041 },
+            "Nauru": { lat: -0.522778, lng: 166.931503 }, "Nepal": { lat: 28.394857, lng: 84.124008 },
+            "Netherlands": { lat: 52.132633, lng: 5.291266 }, "New Zealand": { lat: -40.900557, lng: 174.885971 },
+            "Nicaragua": { lat: 12.865416, lng: -85.207229 }, "Niger": { lat: 17.607789, lng: 8.081666 },
+            "Nigeria": { lat: 9.081999, lng: 8.675277 }, "North Korea": { lat: 40.339852, lng: 127.510093 },
+            "North Macedonia": { lat: 41.608635, lng: 21.745275 }, "Norway": { lat: 60.472024, lng: 8.468946 },
+            "Oman": { lat: 21.512583, lng: 55.923255 }, "Pakistan": { lat: 30.375321, lng: 69.345116 },
+            "Palau": { lat: 7.51498, lng: 134.58252 }, "Palestine": { lat: 31.952162, lng: 35.233154 },
+            "Panama": { lat: 8.537981, lng: -80.782127 }, "Papua New Guinea": { lat: -6.314993, lng: 143.95555 },
+            "Paraguay": { lat: -23.442503, lng: -58.443832 }, "Peru": { lat: -9.189967, lng: -75.015152 },
+            "Philippines": { lat: 12.879721, lng: 121.774017 }, "Poland": { lat: 51.919438, lng: 19.145136 },
+            "Portugal": { lat: 39.399872, lng: -8.224454 }, "Qatar": { lat: 25.354826, lng: 51.183884 },
+            "Romania": { lat: 45.943161, lng: 24.96676 }, "Russia": { lat: 61.52401, lng: 105.318756 },
+            "Rwanda": { lat: -1.940278, lng: 29.873888 }, "Saint Kitts and Nevis": { lat: 17.357822, lng: -62.782998 },
+            "Saint Lucia": { lat: 13.909444, lng: -60.978893 }, "Saint Vincent and the Grenadines": { lat: 12.984305, lng: -61.287228 },
+            "Samoa": { lat: -13.759029, lng: -172.104629 }, "San Marino": { lat: 43.94236, lng: 12.457777 },
+            "Sao Tome and Principe": { lat: 0.18636, lng: 6.613081 }, "Saudi Arabia": { lat: 23.885942, lng: 45.079162 },
+            "Senegal": { lat: 14.497401, lng: -14.452362 }, "Serbia": { lat: 44.016521, lng: 21.005859 },
+            "Seychelles": { lat: -4.679574, lng: 55.491977 }, "Sierra Leone": { lat: 8.460555, lng: -11.779889 },
+            "Singapore": { lat: 1.352083, lng: 103.819836 }, "Slovakia": { lat: 48.669026, lng: 19.699024 },
+            "Slovenia": { lat: 46.151241, lng: 14.995463 }, "Solomon Islands": { lat: -9.64571, lng: 160.156194 },
+            "Somalia": { lat: 5.152149, lng: 46.199616 }, "South Africa": { lat: -30.559482, lng: 22.937506 },
+            "South Korea": { lat: 35.907757, lng: 127.766922 }, "South Sudan": { lat: 6.877, lng: 31.307 },
+            "Spain": { lat: 40.463667, lng: -3.74922 }, "Sri Lanka": { lat: 7.873054, lng: 80.771797 },
+            "Sudan": { lat: 12.862807, lng: 30.217636 }, "Suriname": { lat: 3.919305, lng: -56.027783 },
+            "Sweden": { lat: 60.128161, lng: 18.643501 }, "Switzerland": { lat: 46.818188, lng: 8.227512 },
+            "Syria": { lat: 34.802075, lng: 38.996815 }, "Taiwan": { lat: 23.69781, lng: 120.960515 },
+            "Tajikistan": { lat: 38.861034, lng: 71.276093 }, "Tanzania": { lat: -6.369028, lng: 34.888822 },
+            "Thailand": { lat: 15.870032, lng: 100.992541 }, "Timor-Leste": { lat: -8.874217, lng: 125.727539 },
+            "Togo": { lat: 8.619543, lng: 0.824782 }, "Tonga": { lat: -21.178986, lng: -175.198242 },
+            "Trinidad and Tobago": { lat: 10.691803, lng: -61.222503 }, "Tunisia": { lat: 33.886917, lng: 9.537499 },
+            "Turkey": { lat: 38.963745, lng: 35.243322 }, "Turkmenistan": { lat: 38.969719, lng: 59.556278 },
+            "Tuvalu": { lat: -7.109535, lng: 177.64933 }, "Uganda": { lat: 1.373333, lng: 32.290275 },
+            "Ukraine": { lat: 48.379433, lng: 31.16558 }, "United Arab Emirates": { lat: 23.424076, lng: 53.847818 },
+            "United Kingdom": { lat: 55.378051, lng: -3.435973 }, "United States": { lat: 37.09024, lng: -95.712891 },
+            "Uruguay": { lat: -32.522779, lng: -55.765835 }, "Uzbekistan": { lat: 41.377491, lng: 64.585262 },
+            "Vanuatu": { lat: -15.376706, lng: 166.959158 }, "Vatican City": { lat: 41.902916, lng: 12.453389 },
+            "Venezuela": { lat: 6.42375, lng: -66.58973 }, "Vietnam": { lat: 14.058324, lng: 108.277199 },
+            "Yemen": { lat: 15.552727, lng: 48.516388 }, "Zambia": { lat: -13.133897, lng: 27.849332 },
+            "Zimbabwe": { lat: -19.015438, lng: 29.154857 }
         };
-        reader.readAsDataURL(file);
-        selectedAvatarFile = file;
-        hideMessages();
-      } else {
-        selectedAvatarFile = null;
-        avatarPreview.style.display = 'none';
-        avatarPreview.src = '';
-        uploadPrompt.style.display = 'block';
-      }
-    });
+        const countries = Object.keys(countryData).sort();
 
-    avatarUploadArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      avatarUploadArea.classList.add('dragover');
-    });
-
-    avatarUploadArea.addEventListener('dragleave', (e) => {
-      e.preventDefault();
-      avatarUploadArea.classList.remove('dragover');
-    });
-
-    avatarUploadArea.addEventListener('drop', (e) => {
-      e.preventDefault();
-      avatarUploadArea.classList.remove('dragover');
-      const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith('image/')) {
-        avatarInput.files = e.dataTransfer.files;
-        avatarInput.dispatchEvent(new Event('change'));
-      } else {
-        displayMessage(errorMessage, 'Only image files are allowed.');
-        selectedAvatarFile = null;
-        avatarPreview.style.display = 'none';
-        avatarPreview.src = '';
-        uploadPrompt.style.display = 'block';
-      }
-    });
-
-    // --- Map Styling for GeoJSON Countries ---
-    let geoJsonCountryData = null; // To store the loaded GeoJSON data
-
-    async function loadGeoJsonCountryData() {
-        try {
-            const response = await fetch('data/ne_110m_admin_0_countries.geojson');
-            if (!response.ok) {
-                throw new Error(`Failed to load GeoJSON data: ${response.statusText}`);
+        // --- Helper Functions ---
+        function displayMessage(element, message = '') {
+            hideMessages();
+            if (message) {
+                element.querySelector('p').textContent = message;
             }
-            geoJsonCountryData = await response.json();
-            console.log('GeoJSON country data loaded:', geoJsonCountryData);
-        } catch (error) {
-            console.error('Error loading GeoJSON country data:', error);
-            displayMessage(errorMessage, `Failed to load map data: ${error.message}.`);
+            element.style.display = 'block';
         }
-    }
 
-    function getCountryColor(userCount) {
-        // Defines color based on user count for a country
-        // You can adjust these values and colors to get the desired effect
-        return userCount > 50 ? '#FF7800' : // Orange for many users
-               userCount > 20 ? '#FFB000' : // Darker yellow for medium users
-               userCount > 5  ? '#FFD700' : // Yellow for some users
-               userCount > 0  ? '#FFFACD' : // Light yellow for few users
-                                '#333333'; // Default dark grey for no users
-    }
+        function hideMessages() {
+            loadingMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+        }
 
-    function styleCountryLayer(feature) {
-        const countryName = feature.properties.NAME; // 'NAME' is the property in Natural Earth GeoJSON for country name
-        const countryUserCounts = {};
-        users.forEach(user => {
-            countryUserCounts[user.country] = (countryUserCounts[user.country] || 0) + 1;
-        });
+        // --- Country Search Dropdown Logic ---
+        function showCountryDropdown(filteredCountries) {
+            countryDropdown.innerHTML = '';
+            if (filteredCountries.length === 0 && countryInput.value.trim() !== '') {
+                countryDropdown.style.display = 'none';
+                return;
+            }
 
-        const usersInCountry = countryUserCounts[countryName] || 0;
-
-        return {
-            fillColor: getCountryColor(usersInCountry),
-            weight: 1,
-            opacity: 1,
-            color: 'white', // Border color of countries
-            fillOpacity: 0.7
-        };
-    }
-
-    function onEachFeature(feature, layer) {
-        const countryName = feature.properties.NAME;
-        const countryUsers = users.filter(u => u.country === countryName);
-        const userCount = countryUsers.length;
-
-        if (countryName) {
-            let popupContent = `<div style="text-align: center;">
-                <div class="popup-name">${countryName}</div>
-                <div class="popup-country">Users: ${userCount}</div>`;
-
-            if (countryUsers.length > 0) {
-                popupContent += '<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 10px; max-height: 100px; overflow-y: auto;">';
-                const sortedCountryUsers = [...countryUsers].sort((a, b) => b.id - a.id);
-                for (let i = 0; i < Math.min(sortedCountryUsers.length, 5); i++) {
-                    const user = sortedCountryUsers[i];
-                    popupContent += `
-                        <div style="text-align: center; font-size: 0.8em; width: 45px;">
-                            ${user.avatar ? `<img src="${user.avatar}" class="popup-avatar" alt="Avatar">` : ''}
-                            <div style="word-break: break-all;">${user.nickname}</div>
-                        </div>`;
+            filteredCountries.forEach(countryName => {
+                const option = document.createElement('div');
+                option.classList.add('country-option');
+                if (countryName === selectedCountry) {
+                    option.classList.add('selected');
                 }
-                popupContent += '</div>';
-            }
-            popupContent += `</div>`;
-            layer.bindPopup(popupContent);
-
-            // Optional: Add hover effect for countries
-            layer.on({
-                mouseover: function(e) {
-                    const layer = e.target;
-                    layer.setStyle({
-                        weight: 2,
-                        color: '#666',
-                        dashArray: '',
-                        fillOpacity: 0.9
-                    });
-                    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-                        layer.bringToFront();
-                    }
-                },
-                mouseout: function(e) {
-                    countriesGeoJsonLayer.resetStyle(e.target); // Reset to original style
-                }
-            });
-        }
-    }
-
-
-    // --- Map Update and Stats Logic ---
-    function updateMapAndStats() {
-        if (!map) {
-            console.warn("Map not initialized. Skipping map update.");
-            return;
-        }
-
-        // Clear all existing user markers
-        for (const id in userMarkers) {
-            if (userMarkers.hasOwnProperty(id)) {
-                map.removeLayer(userMarkers[id]);
-            }
-        }
-        userMarkers = {}; // Reset user markers object
-
-        // Add individual user markers with custom icons
-        users.forEach(user => {
-            const coords = countryData[user.country]; // Still use countryData for user marker placement
-            if (coords) {
-                const avatarHtml = user.avatar ? `<img src="${user.avatar}" class="popup-avatar" alt="Avatar">` : '';
-                const customIconHtml = `
-                    <div class="user-marker-icon">
-                        ${avatarHtml}
-                        <div class="user-marker-text">${user.nickname}</div>
-                    </div>
-                `;
-                const customIcon = L.divIcon({
-                    className: 'custom-div-icon',
-                    html: customIconHtml,
-                    iconSize: [60, 60],
-                    iconAnchor: [30, 60]
+                option.textContent = countryName;
+                option.addEventListener('click', () => {
+                    countryInput.value = countryName;
+                    selectedCountry = countryName;
+                    countryDropdown.style.display = 'none';
+                    countryInput.classList.remove('error-border');
+                    hideMessages();
                 });
+                countryDropdown.appendChild(option);
+            });
+            countryDropdown.style.display = 'block';
+        }
 
-                // Use user's specific coordinates if available, otherwise use country centroid from countryData
-                const userLat = user.lat || coords.lat;
-                const userLng = user.lng || coords.lng;
+        countryInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            const filtered = countries.filter(country =>
+                country.toLowerCase().includes(query)
+            );
 
-                const userMarker = L.marker([userLat, userLng], { icon: customIcon }).addTo(map);
+            if (query === '') {
+                showCountryDropdown(countries);
+            } else {
+                showCountryDropdown(filtered);
+            }
 
-                userMarker.bindPopup(`
-                    <div style="text-align: center;">
-                        ${avatarHtml}
-                        <div class="popup-name">${user.nickname}</div>
-                        <div class="popup-country">${user.country}</div>
-                    </div>
-                `);
-                userMarkers[user.id] = userMarker;
+            if (countries.includes(this.value)) {
+                selectedCountry = this.value;
+                countryInput.classList.remove('error-border');
+            } else {
+                selectedCountry = '';
+            }
+            hideMessages();
+        });
+
+        countryInput.addEventListener('focus', function() {
+            if (this.value.trim() === '') {
+                showCountryDropdown(countries);
+            } else {
+                const query = this.value.toLowerCase();
+                const filtered = countries.filter(country =>
+                    country.toLowerCase().includes(query)
+                );
+                showCountryDropdown(filtered);
             }
         });
 
-        // Update GeoJSON layer style
-        if (countriesGeoJsonLayer) {
-            countriesGeoJsonLayer.setStyle(styleCountryLayer);
-        } else {
-            // If GeoJSON layer hasn't been added yet (first load), add it now
-            if (geoJsonCountryData && map) {
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.country-search') && e.target !== countryInput) {
+                countryDropdown.style.display = 'none';
+            }
+        });
+
+        // --- Twitter Username Logic ---
+        twitterUsernameElement.addEventListener('input', function() {
+            const username = this.value.trim();
+            let cleanedUsername = username;
+
+            if (cleanedUsername.startsWith('@')) {
+                cleanedUsername = cleanedUsername.substring(1);
+            }
+
+            currentTwitterUsername = cleanedUsername;
+
+            if (cleanedUsername) {
+                currentTwitterAvatarUrl = `https://unavatar.io/twitter/${cleanedUsername}?size=400`;
+                currentTwitterProfileUrl = `https://twitter.com/${cleanedUsername}`;
+
+                twitterAvatarPreviewElement.src = currentTwitterAvatarUrl;
+                twitterAvatarPreviewElement.style.display = 'block';
+
+                twitterProfileLinkElement.href = currentTwitterProfileUrl;
+                twitterProfileLinkElement.textContent = `@${cleanedUsername}`;
+                twitterProfileLinkElement.style.display = 'block';
+            } else {
+                twitterAvatarPreviewElement.style.display = 'none';
+                twitterAvatarPreviewElement.src = '';
+                twitterProfileLinkElement.style.display = 'none';
+                twitterProfileLinkElement.href = '#';
+                currentTwitterUsername = '';
+                currentTwitterAvatarUrl = '';
+                currentTwitterProfileUrl = '';
+            }
+            hideMessages();
+        });
+
+        // --- Map Styling for GeoJSON Countries (Dynamic Coloring) ---
+        let geoJsonCountryData = null; // To store the loaded GeoJSON data
+
+        async function loadGeoJsonCountryData() {
+            try {
+                // Убедитесь, что путь к файлу корректен относительно вашего HTML файла
+                const response = await fetch('data/ne_110m_admin_0_countries.geojson');
+                if (!response.ok) {
+                    throw new Error(`Failed to load GeoJSON data: ${response.statusText}`);
+                }
+                geoJsonCountryData = await response.json();
+                console.log('GeoJSON country data loaded:', geoJsonCountryData);
+            } catch (error) {
+                console.error('Error loading GeoJSON country data:', error);
+                displayMessage(errorMessage, `Failed to load map data: ${error.message}.`);
+            }
+        }
+
+        // New function to get color based on user count
+        function getCountryColor(userCount) {
+            if (userCount === 0) return '#333333'; // Dark grey for no users
+            if (userCount < 5) return '#50E3C2'; // Lighter green for few users
+            if (userCount < 15) return '#15DDB1'; // Mantle Green for some users
+            if (userCount < 30) return '#10C48B'; // Darker Mantle Green for more users
+            return '#0A7F5C'; // Even darker green for many users
+        }
+
+        function styleCountryLayer(feature) {
+            const countryName = feature.properties.NAME;
+            const countryUserCounts = users.reduce((acc, user) => {
+                acc[user.country] = (acc[user.country] || 0) + 1;
+                return acc;
+            }, {});
+            const usersInCountry = countryUserCounts[countryName] || 0;
+
+            return {
+                fillColor: getCountryColor(usersInCountry),
+                weight: 1,
+                opacity: 1,
+                color: '#333', // Darker border for country shapes
+                fillOpacity: 0.7
+            };
+        }
+
+        function onEachFeature(feature, layer) {
+            const countryName = feature.properties.NAME;
+
+            if (countryName) {
+                // Calculate user count for the popup immediately
+                const usersInThisCountry = users.filter(user => user.country === countryName);
+                const userCount = usersInThisCountry.length;
+
+                let popupContent = `<div style="text-align: center;">
+                    <div class="popup-name">${countryName}</div>`;
+
+                if (userCount > 0) {
+                    popupContent += `<div class="popup-country">Users: ${userCount}</div>`;
+                } else {
+                    popupContent += `<div class="popup-country">No users yet.</div>`;
+                }
+                popupContent += `</div>`;
+
+                layer.bindPopup(popupContent);
+
+                layer.on({
+                    mouseover: function(e) {
+                        e.target.setStyle({
+                            weight: 3,
+                            color: '#15DDB1', // Mantle Green border on hover
+                            dashArray: '',
+                            fillOpacity: 0.9
+                        });
+                        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                            e.target.bringToFront();
+                        }
+                    },
+                    mouseout: function(e) {
+                        // Reset to default style using styleCountryLayer
+                        if (countriesGeoJsonLayer) {
+                            countriesGeoJsonLayer.resetStyle(e.target);
+                        }
+                    },
+                    click: function(e) {
+                        // If there's a specific country marker, fly to it and open its popup
+                        if (countryMarkers[countryName]) {
+                            map.flyTo(countryMarkers[countryName].getLatLng(), map.getZoom() > 5 ? map.getZoom() : 5); // Zoom in a bit if too far
+                            countryMarkers[countryName].openPopup();
+                        } else {
+                            // If no country marker, just fit bounds of the country
+                            map.fitBounds(e.target.getBounds());
+                        }
+                    }
+                });
+            }
+        }
+
+        // --- Main Map & Stats Update Function ---
+        function updateMapDisplayAndStats() {
+            if (!map) {
+                console.warn("Map not initialized. Skipping map update.");
+                return;
+            }
+
+            // 1. Update GeoJSON Layer (Country Borders)
+            if (countriesGeoJsonLayer) {
+                // If layer exists, simply reset its style to update colors based on current user counts
+                countriesGeoJsonLayer.eachLayer(layer => {
+                    countriesGeoJsonLayer.setStyle(styleCountryLayer(layer.feature)); // Apply new style based on current user counts
+                    // Also update the popup content for GeoJSON layers
+                    const countryName = layer.feature.properties.NAME;
+                    const usersInThisCountry = users.filter(user => user.country === countryName);
+                    const userCount = usersInThisCountry.length;
+
+                    let popupContent = `<div style="text-align: center;">
+                        <div class="popup-name">${countryName}</div>`;
+
+                    if (userCount > 0) {
+                        popupContent += `<div class="popup-country">Users: ${userCount}</div>`;
+                    } else {
+                        popupContent += `<div class="popup-country">No users yet.</div>`;
+                    }
+                    popupContent += `</div>`;
+                    layer.setPopupContent(popupContent);
+                });
+            } else if (geoJsonCountryData) {
+                // If layer doesn't exist yet (first load), add it
                 countriesGeoJsonLayer = L.geoJson(geoJsonCountryData, {
                     style: styleCountryLayer,
                     onEachFeature: onEachFeature
                 }).addTo(map);
             }
-        }
 
-        updateHeaderStats();
-        updateCountryListStats();
-
-        map.invalidateSize();
-    }
-
-    // --- Update Header Statistics (Users & Countries) ---
-    function updateHeaderStats() {
-        const totalUsers = users.length;
-        const countriesWithUsers = new Set(users.map(user => user.country)).size;
-        userCountHeaderElement.textContent = totalUsers;
-        countryCountHeaderElement.textContent = countriesWithUsers;
-    }
-
-    // --- Update Detailed Country List Statistics ---
-    function updateCountryListStats() {
-        const countryCounts = {};
-        users.forEach(user => {
-            countryCounts[user.country] = (countryCounts[user.country] || 0) + 1;
-        });
-
-        const sortedCountries = Object.entries(countryCounts).sort(([, countA], [, countB]) => countB - countA);
-
-        countryListElement.innerHTML = ''; // Clear existing list items
-
-        totalUsersCountElement.textContent = users.length;
-
-        sortedCountries.forEach(([country, count]) => {
-            const listItem = document.createElement('li');
-            listItem.innerHTML = `<span class="country-name">${country}</span> <span class="user-count">${count}</span>`;
-            countryListElement.appendChild(listItem);
-        });
-    }
-
-    // --- Functions to Interact with Backend ---
-    async function submitUser() {
-      hideMessages();
-      submitBtn.disabled = true;
-      displayMessage(loadingMessage);
-
-      const nickname = nicknameInput.value.trim();
-      const country = selectedCountry;
-
-      if (!nickname || !country) {
-        displayMessage(errorMessage, 'Please enter a nickname and select a country.');
-        submitBtn.disabled = false;
-        return;
-      }
-
-      if (!countryData[country]) {
-        displayMessage(errorMessage, 'Please select a valid country from the list.');
-        submitBtn.disabled = false;
-        return;
-      }
-
-      let avatarBase64 = '';
-      if (selectedAvatarFile) {
-        try {
-          avatarBase64 = await readFileAsDataURL(selectedAvatarFile);
-        } catch (error) {
-          console.error("Error reading avatar file:", error);
-          displayMessage(errorMessage, 'Could not read avatar image. Please try again.');
-          submitBtn.disabled = false;
-          return;
-        }
-      }
-
-      const coords = countryData[country];
-
-      try {
-        const response = await fetch('https://mantlemap-fullstack-oleg.onrender.com/api/users', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            nickname: nickname,
-            country: country,
-            lat: coords.lat,
-            lng: coords.lng,
-            avatar: avatarBase64
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Network or server error.');
-        }
-
-        const newUser = await response.json();
-        users.push(newUser); // Add the new user to our local array
-
-        // Reset form
-        nicknameInput.value = '';
-        countryInput.value = '';
-        selectedCountry = '';
-        avatarInput.value = '';
-        selectedAvatarFile = null;
-        avatarPreview.style.display = 'none';
-        avatarPreview.src = '';
-        uploadPrompt.style.display = 'block';
-
-        displayMessage(successMessage);
-        updateMapAndStats(); // Update map and all stats
-      } catch (error) {
-        console.error('Error submitting user:', error);
-        displayMessage(errorMessage, `An error occurred: ${error.message}. Please try again.`);
-      } finally {
-        submitBtn.disabled = false;
-      }
-    }
-
-    async function loadUsersFromBackend() {
-        try {
-            const response = await fetch('https://mantlemap-fullstack-oleg.onrender.com/api/users');
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to load users from the server.');
+            // 2. Clear and Re-add Individual User Markers (using MarkerClusterGroup)
+            if (markers) {
+                markers.clearLayers();
+            } else {
+                markers = L.markerClusterGroup({
+                    zoomToBoundsOnClick: true,
+                    maxClusterRadius: 80,
+                    disableClusteringAtZoom: 8
+                });
+                map.addLayer(markers);
             }
-            const data = await response.json();
-            users = data; // Update the global users array
-            updateMapAndStats(); // Update map and all stats
-        } catch (error) {
-            console.error('Error loading users from backend:', error);
-            displayMessage(errorMessage, `Failed to load data: ${error.message}. Please try again later.`);
-            users = []; // Clear users if there's an error
-            updateMapAndStats(); // Update map and stats to reflect empty data
+
+            users.forEach(user => {
+                const countryCoords = countryData[user.country];
+                if (countryCoords) {
+                    const lat = user.lat || countryCoords.lat;
+                    const lng = user.lng || countryCoords.lng;
+
+                    // Use avatar URL directly from user data
+                    const avatarSrc = user.avatar || 'https://via.placeholder.com/50x50.png?text=Anon';
+
+                    const userIcon = L.icon({
+                        iconUrl: avatarSrc,
+                        iconSize: [50, 50],
+                        iconAnchor: [25, 50],
+                        popupAnchor: [0, -50],
+                        className: 'user-marker-icon' // Optional: add class for custom styling
+                    });
+
+                    const marker = L.marker([lat, lng], { icon: userIcon });
+
+                    // Create popup content for individual user
+                    let popupContent = `<div class="popup-content">
+                        <img src="${avatarSrc}" alt="Avatar" class="popup-avatar">
+                        <div class="popup-name">${user.nickname || 'Anonymous'}</div>
+                        <div class="popup-country">${user.country}</div>`;
+
+                    // Use twitter_username and twitter_profile_url if available
+                    if (user.twitter_username && user.twitter_profile_url) {
+                        popupContent += `<a href="${user.twitter_profile_url}" target="_blank" class="popup-twitter-link">@${user.twitter_username}</a>`;
+                    }
+                    popupContent += `</div>`;
+
+                    marker.bindPopup(popupContent);
+                    markers.addLayer(marker);
+                } else {
+                    console.warn(`Country data not found for: ${user.country}`);
+                }
+            });
+
+            // 3. Clear and Re-add Country Grouping Markers (L.circleMarker)
+            for (const country in countryMarkers) {
+                if (countryMarkers.hasOwnProperty(country)) {
+                    map.removeLayer(countryMarkers[country]);
+                }
+            }
+            countryMarkers = {}; // Reset country markers object
+
+            const usersByCountry = users.reduce((acc, user) => {
+                if (!acc[user.country]) {
+                    acc[user.country] = [];
+                }
+                acc[user.country].push(user);
+                return acc;
+            }, {});
+
+            for (const countryName in usersByCountry) {
+                const usersInCountry = usersByCountry[countryName];
+                const coords = countryData[countryName];
+
+                if (coords && usersInCountry.length > 0) {
+                    const countryMarker = L.circleMarker([coords.lat, coords.lng], {
+                        radius: 7 + Math.log(usersInCountry.length + 1) * 2,
+                        fillColor: "#15DDB1", // Mantle Green for country circles
+                        color: "#fff",
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(map);
+
+                    let popupContent = `<div style="text-align: center;">
+                        <div class="popup-name">${countryName}</div>
+                        <div class="popup-country">Total Users: ${usersInCountry.length}</div>
+                        <div style="max-height: 150px; overflow-y: auto; margin-top: 10px; text-align: left; padding-right: 5px;">
+                            <ul style="list-style: none; padding: 0; margin: 0;">`;
+
+                    usersInCountry.sort((a, b) => (a.nickname || '').localeCompare(b.nickname || ''));
+
+                    usersInCountry.forEach(user => {
+                        const avatarSrc = user.avatar || 'https://via.placeholder.com/20x20.png?text=Anon';
+                        const twitterLink = user.twitter_username && user.twitter_profile_url ?
+                            `<a href="${user.twitter_profile_url}" target="_blank" class="popup-twitter-link">@${user.twitter_username}</a>` : '';
+
+                        popupContent += `
+                            <li style="padding: 5px 0; border-bottom: 1px dashed #333; display: flex; align-items: center; gap: 8px;">
+                                <img src="${avatarSrc}" class="popup-avatar" style="width: 30px; height: 30px; border: 1px solid #15DDB1; margin-bottom: 0;" alt="Avatar">
+                                <span style="flex-grow: 1;">${user.nickname || 'Anonymous'}</span>
+                                ${twitterLink}
+                            </li>`;
+                    });
+                    popupContent += `</ul></div></div>`;
+
+                    countryMarker.bindPopup(popupContent);
+                    countryMarkers[countryName] = countryMarker;
+                }
+            }
+
+            // 4. Update Stats
+            updateHeaderStats();
+            updateCountryListStats();
+
+            map.invalidateSize(); // Ensure map tiles render correctly
         }
-    }
 
-    window.submitUser = submitUser; // Make submitUser accessible from HTML onclick
-
-
-    // --- Initialization on DOMContentLoaded ---
-    document.addEventListener('DOMContentLoaded', async () => {
-        const mapElement = document.getElementById('map');
-        if (!mapElement) {
-            console.error("Element with ID 'map' not found in DOM. Map will not be initialized.");
-            return;
+        // --- Update Header Statistics (Users & Countries) ---
+        function updateHeaderStats() {
+            const totalUsers = users.length;
+            const countriesWithUsers = new Set(users.map(user => user.country)).size;
+            userCountHeaderElement.textContent = totalUsers;
+            countryCountHeaderElement.textContent = countriesWithUsers;
         }
 
-        // Initialize map only once
-        if (!map) {
-            map = L.map('map').setView([20, 0], 2);
+        // --- Update Detailed Country List Statistics ---
+        function updateCountryListStats() {
+            const countryCounts = {};
+            users.forEach(user => {
+                countryCounts[user.country] = (countryCounts[user.country] || 0) + 1;
+            });
+
+            const sortedCountries = Object.entries(countryCounts).sort(([, countA], [, countB]) => countB - countA);
+
+            countryListElement.innerHTML = ''; // Clear existing list items
+
+            totalUsersCountElement.textContent = users.length;
+
+            sortedCountries.forEach(([country, count]) => {
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `<span class="country-name">${country}</span> <span class="user-count">${count}</span>`;
+                countryListElement.appendChild(listItem);
+            });
+        }
+
+        // --- Functions to Interact with Backend ---
+        // Change the event listener from onclick to a proper event listener for the button
+        submitBtn.addEventListener('click', async function(event) {
+            event.preventDefault(); // Prevent default form submission behaviour
+
+            submitBtn.disabled = true;
+            hideMessages();
+            displayMessage(loadingMessage, 'Submitting your data...');
+
+            const nickname = currentTwitterUsername; // Use currentTwitterUsername as nickname
+            const country = selectedCountry; // Use selectedCountry
+
+            // Frontend validation
+            if (!nickname) {
+                displayMessage(errorMessage, 'Please enter your Twitter Username.');
+                submitBtn.disabled = false;
+                return;
+            }
+
+            if (!country) {
+                displayMessage(errorMessage, 'Please select a Country from the dropdown list.');
+                submitBtn.disabled = false;
+                countryInput.classList.add('error-border');
+                countryInput.focus();
+                return;
+            } else {
+                countryInput.classList.remove('error-border');
+            }
+
+            const countryCoords = countryData[country]; // Use 'country' here
+            if (!countryCoords) {
+                displayMessage(errorMessage, 'Coordinates for the selected country could not be found. Please try again.');
+                submitBtn.disabled = false;
+                countryInput.classList.add('error-border');
+                countryInput.focus();
+                return;
+            }
+
+            // --- hCaptcha verification ---
+            if (!hcaptchaReady) {
+                displayMessage(errorMessage, 'hCaptcha is still loading. Please wait a moment and try again.');
+                submitBtn.disabled = false;
+                return;
+            }
+
+            const hcaptchaResponse = hcaptcha.getResponse();
+            console.log('hCaptcha Response from frontend:', hcaptchaResponse);
+
+            if (!hcaptchaResponse) {
+                displayMessage(errorMessage, 'Please complete the hCaptcha verification.');
+                submitBtn.disabled = false;
+                return;
+            }
+            // --- End hCaptcha verification ---
+
+            const payload = {
+                nickname: nickname,
+                country: country,
+                lat: countryCoords.lat,
+                lng: countryCoords.lng,
+                avatar: currentTwitterAvatarUrl,
+                twitter_username: currentTwitterUsername,
+                twitter_profile_url: currentTwitterProfileUrl,
+                hcaptcha_response: hcaptchaResponse
+            };
+
+            try {
+                const response = await fetch(`${backendBaseUrl}/api/users`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Network or server error.');
+                }
+
+                const newUser = await response.json();
+                users.push(newUser);
+
+                // Reset form and hCaptcha
+                countryInput.value = '';
+                selectedCountry = '';
+                twitterUsernameElement.value = '';
+                twitterAvatarPreviewElement.style.display = 'none';
+                twitterAvatarPreviewElement.src = '';
+                twitterProfileLinkElement.style.display = 'none';
+                twitterProfileLinkElement.href = '#';
+                currentTwitterUsername = '';
+                currentTwitterAvatarUrl = '';
+                currentTwitterProfileUrl = '';
+                hcaptcha.reset(); // Reset hCaptcha after successful submission
+
+                displayMessage(successMessage);
+                await fetchUsers(); // Refresh map and stats
+            } catch (error) {
+                console.error('Error submitting user:', error);
+                displayMessage(errorMessage, `An error occurred: ${error.message}. Please try again.`);
+                hcaptcha.reset(); // Reset hCaptcha on error as well
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+
+        async function fetchUsers() {
+            displayMessage(loadingMessage, 'Loading users and map data...');
+            try {
+                const response = await fetch(`${backendBaseUrl}/api/users`); // Corrected URL
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to load users from the server.');
+                }
+                const data = await response.json();
+                users = data; // Update the global users array
+                updateMapDisplayAndStats(); // Update map and all stats
+                hideMessages(); // Hide loading message on success
+            } catch (error) {
+                console.error('Error loading users from backend:', error);
+                displayMessage(errorMessage, `Failed to load data: ${error.message}. Please try again later.`);
+                users = []; // Clear users if there's an error
+                updateMapDisplayAndStats(); // Update map and stats to reflect empty data
+            }
+        }
+
+        // --- Map Initialization ---
+        async function initMap() {
+            const mapElement = document.getElementById('map');
+            if (!mapElement) {
+                console.error("Element with ID 'map' not found in DOM. Map will not be initialized.");
+                return;
+            }
+
+            if (map) { // Destroy existing map instance if it was created before
+                map.remove();
+            }
+
+            map = L.map('map').setView([20, 0], 2); // Centered globally, zoom level 2
+
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap contributors, &copy; CARTO',
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
                 subdomains: 'abcd',
                 maxZoom: 19
             }).addTo(map);
 
-            // Ensure map invalidates size for proper rendering after initialization
-            map.on('resize', function() {
-                map.invalidateSize();
-            });
-            map.invalidateSize(); // Initial invalidate size
+            // Load GeoJSON data first
+            await loadGeoJsonCountryData();
+            // Then fetch users and update map and stats after GeoJSON is loaded
+            await fetchUsers();
         }
 
-        // Load GeoJSON data first
-        await loadGeoJsonCountryData();
+        // Initialize map and fetch users when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', initMap);
 
-        // Load users from backend when the page loads
-        await loadUsersFromBackend();
-
-        // Add event listener for the form submission
-        const userForm = document.getElementById('user-form');
-        if (userForm) { // Ensure form exists before adding listener
-            userForm.addEventListener('submit', async (event) => {
-                event.preventDefault(); // Prevent default form submission
-                await submitUser();
-            });
-        }
-    });
-  </script>
-
+    </script>
 </body>
 </html>
