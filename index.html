@@ -864,9 +864,9 @@ async function loadGeoJsonCountryData() {
 // New function to get color based on user count
 function getCountryColor(userCount) {
     if (userCount === 0) return '#333333'; // Dark grey for no users
-    if (userCount < 5) return '#50E3C2'; // Lighter green for few users
-    if (userCount < 15) return '#15DDB1'; // Mantle Green for some users
-    if (userCount < 30) return '#10C48B'; // Darker Mantle Green for more users
+    if (userCount < 2) return '#50E3C2'; // Lighter green for few users
+    if (userCount < 4) return '#15DDB1'; // Mantle Green for some users
+    if (userCount < 8) return '#10C48B'; // Darker Mantle Green for more users
     return '#0A7F5C'; // Even darker green for many users
 }
 
