@@ -1,6 +1,6 @@
 require('dotenv').config(); // Загружает переменные окружения из .env файла
 const express = require('express');
-const axios = require('axios'); // Для выполнения HTTP-запросов
+const axios = require('axios'); // Все еще нужен, если планируете другие HTTP-запросы, но не для капчи
 const cors = require('cors'); // Для управления CORS
 const mongoose = require('mongoose'); // Для работы с MongoDB
 
@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema({
     lat: { type: Number, required: true },
     lng: { type: Number, required: true },
     avatar: { type: String },
-    twitter_username: { type: String, unique: true, sparse: true }, // unique: true с sparse: true позволяет нескольким документам иметь null значение
+    twitter_username: { type: String, unique: true, sparse: true },
     twitter_profile_url: { type: String }
 }, { timestamps: true }); // Добавляет поля createdAt и updatedAt
 
@@ -30,7 +30,7 @@ const User = mongoose.model('User', userSchema);
 // Middleware для обработки JSON-запросов
 app.use(express.json());
 
-// Middleware для обработки URL-кодированных данных (для форм), хотя для hCaptcha используем URLSearchParams
+// Middleware для обработки URL-кодированных данных (для форм)
 app.use(express.urlencoded({ extended: true }));
 
 // Настройка CORS
@@ -47,7 +47,7 @@ app.get('/', (req, res) => {
     res.send('API Server is running!');
 });
 
-// Новый маршрут для получения всех пользователей из MongoDB
+// Маршрут для получения всех пользователей из MongoDB
 app.get('/api/users', async (req, res) => {
     try {
         const users = await User.find({}); // Получаем всех пользователей из коллекции
@@ -59,50 +59,21 @@ app.get('/api/users', async (req, res) => {
     }
 });
 
-// Маршрут для регистрации пользователя
+// Маршрут для регистрации пользователя (без hCaptcha)
 app.post('/api/users', async (req, res) => {
-    // ВНИМАНИЕ: Изменено h-captcha-response на hcaptcha_response, чтобы соответствовать фронтенду
-    const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url, hcaptcha_response } = req.body;
+    // Получаем данные из тела запроса (hcaptcha_response здесь больше не нужен)
+    const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
 
-    console.log('Получены данные:', { nickname, country, hcaptcha_response: !!hcaptcha_response });
+    console.log('Получены данные:', { nickname, country });
 
     // 1. Валидация на стороне сервера: проверка обязательных полей
-    if (!nickname || !country || !hcaptcha_response || lat === undefined || lng === undefined) {
-        console.warn('Отсутствуют обязательные поля:', { nickname, country, lat, lng, hcaptcha_response: !!hcaptcha_response });
-        return res.status(400).json({ message: 'Отсутствуют обязательные поля (никнейм, страна, координаты или ответ hCaptcha).' });
-    }
-
-    // 2. Валидация hCaptcha на стороне сервера
-    const secret = process.env.HCAPTCHA_SECRET_KEY; // Ваш секретный ключ из переменных окружения
-    const verificationUrl = 'https://hcaptcha.com/siteverify';
-
-    // Проверка, что секретный ключ установлен
-    if (!secret) {
-        console.error('HCAPTCHA_SECRET_KEY не установлен в переменных окружения!');
-        return res.status(500).json({ message: 'Ошибка сервера: HCAPTCHA_SECRET_KEY не настроен.' });
+    if (!nickname || !country || lat === undefined || lng === undefined) {
+        console.warn('Отсутствуют обязательные поля:', { nickname, country, lat, lng });
+        return res.status(400).json({ message: 'Отсутствуют обязательные поля (никнейм, страна или координаты).' });
     }
 
     try {
-        // HCaptcha ожидает данные в формате application/x-www-form-urlencoded
-        const params = new URLSearchParams();
-        params.append('secret', secret);
-        params.append('response', hcaptcha_response);
-
-        const verificationRes = await axios.post(verificationUrl, params, {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
-        });
-
-        const hcaptchaData = verificationRes.data;
-        console.log('Ответ верификации hCaptcha:', hcaptchaData);
-
-        if (!hcaptchaData.success) {
-            console.warn('Верификация hCaptcha не пройдена:', hcaptchaData['error-codes']);
-            return res.status(401).json({ message: 'Проверка hCaptcha не прошла. Пожалуйста, попробуйте еще раз.', errorCodes: hcaptchaData['error-codes'] });
-        }
-
-        // Если hCaptcha прошла успешно, сохраняем пользователя в MongoDB
+        // Сохраняем пользователя в MongoDB
         const newUser = new User({
             nickname,
             country,
@@ -120,23 +91,14 @@ app.post('/api/users', async (req, res) => {
         res.status(201).json(newUser); // 201 Created - для успешного создания ресурса
 
     } catch (error) {
-        // Более детальное логирование ошибок axios и MongoDB
+        // Обработка ошибок MongoDB
         if (error.code === 11000) { // Код ошибки MongoDB для дубликатов ключей
             console.warn('Попытка дубликата пользователя:', error.message);
             return res.status(409).json({ message: 'Пользователь с таким никнеймом или именем пользователя Twitter уже существует.', details: error.message });
         }
-        if (error.response) {
-            console.error('Ошибка HCaptcha API (response):', error.response.data);
-            console.error('Статус HCaptcha API (status):', error.response.status);
-            console.error('Заголовки HCaptcha API (headers):', error.response.headers);
-            return res.status(500).json({ message: 'Ошибка при проверке hCaptcha на сервере.', details: error.response.data });
-        } else if (error.request) {
-            console.error('Ошибка HCaptcha API (request): Нет ответа от сервера HCaptcha.');
-            return res.status(500).json({ message: 'Ошибка при проверке hCaptcha на сервере: Нет ответа от HCaptcha API.', details: error.message });
-        } else {
-            console.error('Неизвестная ошибка HCaptcha API или сохранения в БД:', error.message);
-            return res.status(500).json({ message: 'Неизвестная ошибка при обработке запроса.', details: error.message });
-        }
+        
+        console.error('Неизвестная ошибка при сохранении в БД:', error.message);
+        return res.status(500).json({ message: 'Неизвестная ошибка при обработке запроса.', details: error.message });
     }
 });
 
