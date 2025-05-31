@@ -24,7 +24,7 @@ app.get('/', (req, res) => {
 });
 
 // Ìàðøðóò äëÿ ðåãèñòðàöèè ïîëüçîâàòåëÿ
-app.post('/api/users', async (req, res) => {
+app.post('/api/users', async (req, res) => { // <--- ÎÁÐÀÒÈÒÅ ÂÍÈÌÀÍÈÅ ÍÀ 'async' ÇÄÅÑÜ!
     const { nickname, country, 'h-captcha-response': hcaptcha_response } = req.body;
 
     console.log('Received data:', { nickname, country, hcaptcha_response: !!hcaptcha_response }); // Ëîãèðóåì ïîëó÷åííûå äàííûå
@@ -46,7 +46,7 @@ app.post('/api/users', async (req, res) => {
     }
 
     try {
-        // *** ÈÇÌÅÍÅÍÀ ËÎÃÈÊÀ ÎÒÏÐÀÂÊÈ ÄÀÍÍÛÕ Â AXIOS ***
+        // --- ÈÇÌÅÍÅÍÈß ÂÛÇÎÂÀ AXIOS.POST ÍÀ×ÈÍÀÞÒÑß ÇÄÅÑÜ ---
         // HCaptcha îæèäàåò äàííûå â ôîðìàòå application/x-www-form-urlencoded
         // Èñïîëüçóåì URLSearchParams äëÿ ïðàâèëüíîãî ôîðìèðîâàíèÿ òåëà çàïðîñà
         const params = new URLSearchParams();
@@ -54,17 +54,11 @@ app.post('/api/users', async (req, res) => {
         params.append('response', hcaptcha_response);
 
         const verificationRes = await axios.post(verificationUrl, params, {
-            const verificationRes = await axios.post(
-    verificationUrl,
-    `secret=${secret}&response=${hcaptcha_response}`, // <-- ÈÇÌÅÍÅÍÈÅ ÇÄÅÑÜ
-    {
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-    }
-);
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
         });
-        // ***********************************************
+        // --- ÈÇÌÅÍÅÍÈß ÂÛÇÎÂÀ AXIOS.POST ÇÀÊÀÍ×ÈÂÀÞÒÑß ÇÄÅÑÜ ---
 
         const hcaptchaData = verificationRes.data;
         console.log('hCaptcha verification response:', hcaptchaData);
