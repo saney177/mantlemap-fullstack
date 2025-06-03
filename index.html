@@ -139,7 +139,6 @@
             overflow: hidden;
             width: calc(100% - 4rem);
             animation: fadeIn 0.8s ease-out; /* Add fade-in animation */
-            text-align: center;
         }
 
         @keyframes fadeIn {
@@ -162,10 +161,93 @@
             margin-bottom: 2rem;
             color: #15DDB1; /* Mantle Green */
             font-size: 1.5rem;
+            text-align: center;
         }
 
-        /* Twitter Connect Button */
-        .twitter-connect-btn {
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-section label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #15DDB1; /* Mantle Green */
+            font-weight: 500;
+        }
+
+        .form-section input, .form-section select {
+            width: 100%;
+            padding: 1rem;
+            background: #2a2a2a; /* Darker input background */
+            color: white;
+            border: 2px solid #444;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-section input:focus, .form-section select:focus {
+            outline: none;
+            border-color: #15DDB1; /* Mantle Green on focus */
+            box-shadow: 0 0 0 3px rgba(21, 221, 177, 0.2);
+        }
+
+        /* Twitter Username Section */
+        .twitter-username-area {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: #2a2a2a;
+            border: 2px solid #444;
+            border-radius: 0.75rem;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .twitter-username-area:focus-within {
+            border-color: #15DDB1;
+            box-shadow: 0 0 0 3px rgba(21, 221, 177, 0.2);
+        }
+
+        .twitter-username-area input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            padding: 0.5rem 0;
+            font-size: 1rem;
+        }
+
+        .twitter-username-area input:focus {
+            outline: none;
+            border-color: transparent;
+            box-shadow: none;
+        }
+
+        .twitter-avatar-preview {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #15DDB1; /* Mantle Green avatar border */
+            display: none; /* Hidden by default */
+        }
+
+        .twitter-profile-link {
+            color: #15DDB1; /* Mantle Green for Twitter link */
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            display: block;
+            text-align: center;
+        }
+
+        .twitter-profile-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Submit Button */
+        .submit-btn {
             width: 100%;
             margin-top: 2rem;
             padding: 1.2rem 2rem;
@@ -182,9 +264,16 @@
             box-shadow: 0 5px 15px rgba(21, 221, 177, 0.2); /* Subtle shadow */
         }
 
-        .twitter-connect-btn:hover {
+        .submit-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(21, 221, 177, 0.4);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
         /* Messages */
@@ -338,6 +427,7 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* Deeper shadow */
             color: #e0e0e0;
             width: calc(100% - 4rem);
+            border: 1px solid rgba(21, 221, 177, 0.2); /* Mantle Green border */
             animation: fadeIn 0.8s ease-out; /* Add fade-in animation */
         }
 
@@ -457,8 +547,12 @@
         <h3>Join the Community</h3>
 
         <div class="form-group">
-            <!-- Replaced Twitter username input with Twitter Connect Button -->
-            <button class="twitter-connect-btn" id="twitterConnectBtn" type="button">Connect with Twitter</button>
+            <label for="twitterUsername">Twitter Username</label>
+            <div class="twitter-username-area">
+                <img id="twitterAvatarPreview" class="twitter-avatar-preview" alt="Twitter avatar">
+                <input type="text" id="twitterUsername" placeholder="@yourhandle" maxlength="30">
+            </div>
+            <a id="twitterProfileLink" class="twitter-profile-link" href="#" target="_blank" style="display: none;">View Twitter Profile</a>
         </div>
 
         <div class="form-group">
@@ -468,6 +562,8 @@
                 <div class="country-dropdown" id="countryDropdown"></div>
             </div>
         </div>
+
+        <div class="h-captcha" data-sitekey="5b62011c-f378-4022-afec-0f5e53f488c8"></div>
 
         <div class="loading" id="loading">
             <p>Uploading to the blockchain... ⛓️</p>
@@ -480,6 +576,9 @@
         <div class="error-message" id="errorMessage">
             <p id="errorText">Something went wrong. Please try again.</p>
         </div>
+
+
+        <button class="submit-btn">Join the Map</button>
     </section>
 
     <div class="map-container" id="map"></div>
@@ -499,7 +598,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-
+    <script src="https://js.hcaptcha.com/1/api.js?onload=onloadHCaptcha" async defer></script>
     <script>
         // GLOBAL VARIABLES
         let map;
@@ -509,26 +608,36 @@
         let markers; // MarkerClusterGroup for individual user markers
 
         let selectedCountry = '';
-        let currentUser = null; // Will hold the user info after Twitter auth
+        let currentTwitterUsername = '';
+        let currentTwitterAvatarUrl = '';
+        let currentTwitterProfileUrl = '';
 
-        const backendBaseUrl = 'https://mantlemap-fullstack-oleg.onrender.com'; // API base URL
+        let hcaptchaReady = false;
+        function onloadHCaptcha() {
+            hcaptchaReady = true;
+            console.log("hCaptcha API loaded and ready.");
+        }
+
+        const backendBaseUrl = 'https://mantlemap-fullstack-oleg.onrender.com'; // Используем эту базу URL
 
         const countryInput = document.getElementById('country');
         const countryDropdown = document.getElementById('countryDropdown');
+        const twitterUsernameElement = document.getElementById('twitterUsername');
+        const twitterAvatarPreviewElement = document.getElementById('twitterAvatarPreview');
+        const twitterProfileLinkElement = document.getElementById('twitterProfileLink');
 
         const loadingMessage = document.getElementById('loading');
         const successMessage = document.getElementById('successMessage');
         const errorMessage = document.getElementById('errorMessage');
         const errorText = document.getElementById('errorText');
+        const submitBtn = document.querySelector('.submit-btn');
 
         const userCountHeaderElement = document.getElementById('userCount');
         const countryCountHeaderElement = document.getElementById('countryCount');
         const totalUsersCountElement = document.getElementById('total-users-count');
         const countryListElement = document.getElementById('country-list');
 
-        const twitterConnectBtn = document.getElementById('twitterConnectBtn');
-
-        // Country data object as before (not shown here for brevity, but copy your existing one)
+        // Country Data (still used for coordinates when adding a new user)
         const countryData = {
             "Afghanistan": { lat: 33.93911, lng: 67.709953 }, "Albania": { lat: 41.153332, lng: 20.168331 },
             "Algeria": { lat: 28.033886, lng: 1.659626 }, "Angola": { lat: -11.202692, lng: 17.873887 },
@@ -630,6 +739,7 @@
         };
         const countries = Object.keys(countryData).sort();
 
+        // --- Helper Functions ---
         function displayMessage(element, message = '') {
             hideMessages();
             if (message) {
@@ -644,8 +754,7 @@
             errorMessage.style.display = 'none';
         }
 
-        // Country search dropdown and selection logic (same as your existing code)
-         // --- Country Search Dropdown Logic ---
+        // --- Country Search Dropdown Logic ---
         function showCountryDropdown(filteredCountries) {
             countryDropdown.innerHTML = '';
             if (filteredCountries.length === 0 && countryInput.value.trim() !== '') {
@@ -710,37 +819,136 @@
                 countryDropdown.style.display = 'none';
             }
         });
-        // (You can copy your existing code here without modifications)
 
-        // Twitter Connect button click handler:
-        twitterConnectBtn.addEventListener('click', () => {
-            // Redirect user to Twitter auth server route
-            window.location.href = `${backendBaseUrl.replace(/\/$/, '')}/auth/twitter`;
+        // --- Twitter Username Logic ---
+        twitterUsernameElement.addEventListener('input', function() {
+            const username = this.value.trim();
+            let cleanedUsername = username;
+
+            if (cleanedUsername.startsWith('@')) {
+                cleanedUsername = cleanedUsername.substring(1);
+            }
+
+            currentTwitterUsername = cleanedUsername;
+
+            if (cleanedUsername) {
+                currentTwitterAvatarUrl = `https://unavatar.io/twitter/${cleanedUsername}?size=400`;
+                currentTwitterProfileUrl = `https://twitter.com/${cleanedUsername}`;
+
+                twitterAvatarPreviewElement.src = currentTwitterAvatarUrl;
+                twitterAvatarPreviewElement.style.display = 'block';
+
+                twitterProfileLinkElement.href = currentTwitterProfileUrl;
+                twitterProfileLinkElement.textContent = `@${cleanedUsername}`;
+                twitterProfileLinkElement.style.display = 'block';
+            } else {
+                twitterAvatarPreviewElement.style.display = 'none';
+                twitterAvatarPreviewElement.src = '';
+                twitterProfileLinkElement.style.display = 'none';
+                twitterProfileLinkElement.href = '#';
+                currentTwitterUsername = '';
+                currentTwitterAvatarUrl = '';
+                currentTwitterProfileUrl = '';
+            }
+            hideMessages();
         });
 
-        // Function to handle post-login user data fetching and UI update
-        async function fetchUsers() {
-            displayMessage(loadingMessage, 'Loading users and map data...');
+        // --- Map Styling for GeoJSON Countries (Dynamic Coloring) ---
+        let geoJsonCountryData = null; // To store the loaded GeoJSON data
+
+        async function loadGeoJsonCountryData() {
             try {
-                const response = await fetch(`${backendBaseUrl}/api/users`);
+                // Убедитесь, что путь к файлу корректен относительно вашего HTML файла
+                const response = await fetch('data/ne_110m_admin_0_countries.geojson');
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Failed to load users from the server.');
+                    throw new Error(`Failed to load GeoJSON data: ${response.statusText}`);
                 }
-                const data = await response.json();
-                users = data;
-                updateMapDisplayAndStats();
-                hideMessages();
+                geoJsonCountryData = await response.json();
+                console.log('GeoJSON country data loaded:', geoJsonCountryData);
             } catch (error) {
-                console.error('Error loading users from backend:', error);
-                displayMessage(errorMessage, `Failed to load data: ${error.message}. Please try again later.`);
-                users = [];
-                updateMapDisplayAndStats();
+                console.error('Error loading GeoJSON country data:', error);
+                displayMessage(errorMessage, `Failed to load map data: ${error.message}.`);
             }
         }
 
-        // Functions updateMapDisplayAndStats, updateHeaderStats, updateCountryListStats, and other map logic
-        // should be copied from your existing code unchanged.
+        // New function to get color based on user count
+        function getCountryColor(userCount) {
+            if (userCount === 0) return '#333333'; // Dark grey for no users
+            if (userCount < 2) return '#50E3C2'; // Lighter green for few users
+            if (userCount < 4) return '#15DDB1'; // Mantle Green for some users
+            if (userCount < 6) return '#10C48B'; // Darker Mantle Green for more users
+            return '#0A7F5C'; // Even darker green for many users
+        }
+
+        function styleCountryLayer(feature) {
+            const countryName = feature.properties.NAME;
+            const countryUserCounts = users.reduce((acc, user) => {
+                acc[user.country] = (acc[user.country] || 0) + 1;
+                return acc;
+            }, {});
+            const usersInCountry = countryUserCounts[countryName] || 0;
+
+            return {
+                fillColor: getCountryColor(usersInCountry),
+                weight: 1,
+                opacity: 1,
+                color: '#333', // Darker border for country shapes
+                fillOpacity: 0.7
+            };
+        }
+
+        function onEachFeature(feature, layer) {
+            const countryName = feature.properties.NAME;
+
+            if (countryName) {
+                // Calculate user count for the popup immediately
+                const usersInThisCountry = users.filter(user => user.country === countryName);
+                const userCount = usersInThisCountry.length;
+
+                let popupContent = `<div style="text-align: center;">
+                    <div class="popup-name">${countryName}</div>`;
+
+                if (userCount > 0) {
+                    popupContent += `<div class="popup-country">Users: ${userCount}</div>`;
+                } else {
+                    popupContent += `<div class="popup-country">No users yet.</div>`;
+                }
+                popupContent += `</div>`;
+
+                layer.bindPopup(popupContent);
+
+                layer.on({
+                    mouseover: function(e) {
+                        e.target.setStyle({
+                            weight: 3,
+                            color: '#15DDB1', // Mantle Green border on hover
+                            dashArray: '',
+                            fillOpacity: 0.9
+                        });
+                        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                            e.target.bringToFront();
+                        }
+                    },
+                    mouseout: function(e) {
+                        // Reset to default style using styleCountryLayer
+                        if (countriesGeoJsonLayer) {
+                            countriesGeoJsonLayer.resetStyle(e.target);
+                        }
+                    },
+                    click: function(e) {
+                        // If there's a specific country marker, fly to it and open its popup
+                        if (countryMarkers[countryName]) {
+                            map.flyTo(countryMarkers[countryName].getLatLng(), map.getZoom() > 5 ? map.getZoom() : 5); // Zoom in a bit if too far
+                            countryMarkers[countryName].openPopup();
+                        } else {
+                            // If no country marker, just fit bounds of the country
+                            map.fitBounds(e.target.getBounds());
+                        }
+                    }
+                });
+            }
+        }
+
         // --- Main Map & Stats Update Function ---
         function updateMapDisplayAndStats() {
             if (!map) {
@@ -1047,7 +1255,7 @@
             }
         }
 
-        // Initialization function that calls fetchUsers and sets up the map as before.
+        // --- Map Initialization ---
         async function initMap() {
             const mapElement = document.getElementById('map');
             if (!mapElement) {
@@ -1055,11 +1263,11 @@
                 return;
             }
 
-            if (map) {
+            if (map) { // Destroy existing map instance if it was created before
                 map.remove();
             }
 
-            map = L.map('map').setView([20, 0], 2);
+            map = L.map('map').setView([20, 0], 2); // Centered globally, zoom level 2
 
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
@@ -1067,19 +1275,14 @@
                 maxZoom: 19
             }).addTo(map);
 
-            // Load GeoJSON country data here as in your existing code
-
+            // Load GeoJSON data first
+            await loadGeoJsonCountryData();
+            // Then fetch users and update map and stats after GeoJSON is loaded
             await fetchUsers();
         }
 
+        // Initialize map and fetch users when the DOM is fully loaded
         document.addEventListener('DOMContentLoaded', initMap);
-
-        // Note:
-        // After Twitter login on your server, when redirecting back to the client site,
-        // you can extend this code to query an endpoint that returns the logged-in user's data,
-        // and then fill the UI accordingly if needed.
-
-        // You can also add a "Logout" button or UI changes as needed based on your auth strategy.
 
     </script>
 </body>
