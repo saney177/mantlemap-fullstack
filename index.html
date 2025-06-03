@@ -563,8 +563,6 @@
             </div>
         </div>
 
-        <div class="h-captcha" data-sitekey="daa4f088-c442-471e-96b2-60bc113e9c40"></div>
-
         <div class="loading" id="loading">
             <p>Uploading to the blockchain... ⛓️</p>
         </div>
@@ -576,7 +574,6 @@
         <div class="error-message" id="errorMessage">
             <p id="errorText">Something went wrong. Please try again.</p>
         </div>
-
 
         <button class="submit-btn">Join the Map</button>
     </section>
@@ -598,7 +595,6 @@
 
     <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-    <script src="https://js.hcaptcha.com/1/api.js?onload=onloadHCaptcha" async defer></script>
     <script>
         // GLOBAL VARIABLES
         let map;
@@ -611,12 +607,6 @@
         let currentTwitterUsername = '';
         let currentTwitterAvatarUrl = '';
         let currentTwitterProfileUrl = '';
-
-        let hcaptchaReady = false;
-        function onloadHCaptcha() {
-            hcaptchaReady = true;
-            console.log("hCaptcha API loaded and ready.");
-        }
 
         const backendBaseUrl = 'https://mantlemap-fullstack-oleg.onrender.com'; // Используем эту базу URL
 
@@ -739,549 +729,531 @@
         };
         const countries = Object.keys(countryData).sort();
 
-        // --- Helper Functions ---
-        function displayMessage(element, message = '') {
+ // --- Helper Functions ---
+function displayMessage(element, message = '') {
+    hideMessages();
+    if (message) {
+        element.querySelector('p').textContent = message;
+    }
+    element.style.display = 'block';
+}
+
+function hideMessages() {
+    loadingMessage.style.display = 'none';
+    successMessage.style.display = 'none';
+    errorMessage.style.display = 'none';
+}
+
+// --- Country Search Dropdown Logic ---
+function showCountryDropdown(filteredCountries) {
+    countryDropdown.innerHTML = '';
+    if (filteredCountries.length === 0 && countryInput.value.trim() !== '') {
+        countryDropdown.style.display = 'none';
+        return;
+    }
+
+    filteredCountries.forEach(countryName => {
+        const option = document.createElement('div');
+        option.classList.add('country-option');
+        if (countryName === selectedCountry) {
+            option.classList.add('selected');
+        }
+        option.textContent = countryName;
+        option.addEventListener('click', () => {
+            countryInput.value = countryName;
+            selectedCountry = countryName;
+            countryDropdown.style.display = 'none';
+            countryInput.classList.remove('error-border');
             hideMessages();
-            if (message) {
-                element.querySelector('p').textContent = message;
-            }
-            element.style.display = 'block';
+        });
+        countryDropdown.appendChild(option);
+    });
+    countryDropdown.style.display = 'block';
+}
+
+countryInput.addEventListener('input', function() {
+    const query = this.value.toLowerCase();
+    const filtered = countries.filter(country =>
+        country.toLowerCase().includes(query)
+    );
+
+    if (query === '') {
+        showCountryDropdown(countries);
+    } else {
+        showCountryDropdown(filtered);
+    }
+
+    if (countries.includes(this.value)) {
+        selectedCountry = this.value;
+        countryInput.classList.remove('error-border');
+    } else {
+        selectedCountry = '';
+    }
+    hideMessages();
+});
+
+countryInput.addEventListener('focus', function() {
+    if (this.value.trim() === '') {
+        showCountryDropdown(countries);
+    } else {
+        const query = this.value.toLowerCase();
+        const filtered = countries.filter(country =>
+            country.toLowerCase().includes(query)
+        );
+        showCountryDropdown(filtered);
+    }
+});
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.country-search') && e.target !== countryInput) {
+        countryDropdown.style.display = 'none';
+    }
+});
+
+// --- Twitter Username Logic ---
+twitterUsernameElement.addEventListener('input', function() {
+    const username = this.value.trim();
+    let cleanedUsername = username;
+
+    if (cleanedUsername.startsWith('@')) {
+        cleanedUsername = cleanedUsername.substring(1);
+    }
+
+    currentTwitterUsername = cleanedUsername;
+
+    if (cleanedUsername) {
+        currentTwitterAvatarUrl = `https://unavatar.io/twitter/${cleanedUsername}?size=400`;
+        currentTwitterProfileUrl = `https://twitter.com/${cleanedUsername}`;
+
+        twitterAvatarPreviewElement.src = currentTwitterAvatarUrl;
+        twitterAvatarPreviewElement.style.display = 'block';
+
+        twitterProfileLinkElement.href = currentTwitterProfileUrl;
+        twitterProfileLinkElement.textContent = `@${cleanedUsername}`;
+        twitterProfileLinkElement.style.display = 'block';
+    } else {
+        twitterAvatarPreviewElement.style.display = 'none';
+        twitterAvatarPreviewElement.src = '';
+        twitterProfileLinkElement.style.display = 'none';
+        twitterProfileLinkElement.href = '#';
+        currentTwitterUsername = '';
+        currentTwitterAvatarUrl = '';
+        currentTwitterProfileUrl = '';
+    }
+    hideMessages();
+});
+
+// --- Map Styling for GeoJSON Countries (Dynamic Coloring) ---
+let geoJsonCountryData = null; // To store the loaded GeoJSON data
+
+async function loadGeoJsonCountryData() {
+    try {
+        // Убедитесь, что путь к файлу корректен относительно вашего HTML файла
+        const response = await fetch('data/ne_110m_admin_0_countries.geojson');
+        if (!response.ok) {
+            throw new Error(`Failed to load GeoJSON data: ${response.statusText}`);
         }
+        geoJsonCountryData = await response.json();
+        console.log('GeoJSON country data loaded:', geoJsonCountryData);
+    } catch (error) {
+        console.error('Error loading GeoJSON country data:', error);
+        displayMessage(errorMessage, `Failed to load map data: ${error.message}.`);
+    }
+}
 
-        function hideMessages() {
-            loadingMessage.style.display = 'none';
-            successMessage.style.display = 'none';
-            errorMessage.style.display = 'none';
+// New function to get color based on user count
+function getCountryColor(userCount) {
+    if (userCount === 0) return '#333333'; // Dark grey for no users
+    if (userCount < 2) return '#50E3C2'; // Lighter green for few users
+    if (userCount < 4) return '#15DDB1'; // Mantle Green for some users
+    if (userCount < 8) return '#10C48B'; // Darker Mantle Green for more users
+    return '#0A7F5C'; // Even darker green for many users
+}
+
+function styleCountryLayer(feature) {
+    const countryName = feature.properties.NAME;
+    const countryUserCounts = users.reduce((acc, user) => {
+        acc[user.country] = (acc[user.country] || 0) + 1;
+        return acc;
+    }, {});
+    const usersInCountry = countryUserCounts[countryName] || 0;
+
+    return {
+        fillColor: getCountryColor(usersInCountry),
+        weight: 1,
+        opacity: 1,
+        color: '#333', // Darker border for country shapes
+        fillOpacity: 0.7
+    };
+}
+
+function onEachFeature(feature, layer) {
+    const countryName = feature.properties.NAME;
+
+    if (countryName) {
+        // Calculate user count for the popup immediately
+        const usersInThisCountry = users.filter(user => user.country === countryName);
+        const userCount = usersInThisCountry.length;
+
+        let popupContent = `<div style="text-align: center;">
+            <div class="popup-name">${countryName}</div>`;
+
+        if (userCount > 0) {
+            popupContent += `<div class="popup-country">Users: ${userCount}</div>`;
+        } else {
+            popupContent += `<div class="popup-country">No users yet.</div>`;
         }
+        popupContent += `</div>`;
 
-        // --- Country Search Dropdown Logic ---
-        function showCountryDropdown(filteredCountries) {
-            countryDropdown.innerHTML = '';
-            if (filteredCountries.length === 0 && countryInput.value.trim() !== '') {
-                countryDropdown.style.display = 'none';
-                return;
-            }
+        layer.bindPopup(popupContent);
 
-            filteredCountries.forEach(countryName => {
-                const option = document.createElement('div');
-                option.classList.add('country-option');
-                if (countryName === selectedCountry) {
-                    option.classList.add('selected');
-                }
-                option.textContent = countryName;
-                option.addEventListener('click', () => {
-                    countryInput.value = countryName;
-                    selectedCountry = countryName;
-                    countryDropdown.style.display = 'none';
-                    countryInput.classList.remove('error-border');
-                    hideMessages();
+        layer.on({
+            mouseover: function(e) {
+                e.target.setStyle({
+                    weight: 3,
+                    color: '#15DDB1', // Mantle Green border on hover
+                    dashArray: '',
+                    fillOpacity: 0.9
                 });
-                countryDropdown.appendChild(option);
-            });
-            countryDropdown.style.display = 'block';
-        }
-
-        countryInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase();
-            const filtered = countries.filter(country =>
-                country.toLowerCase().includes(query)
-            );
-
-            if (query === '') {
-                showCountryDropdown(countries);
-            } else {
-                showCountryDropdown(filtered);
-            }
-
-            if (countries.includes(this.value)) {
-                selectedCountry = this.value;
-                countryInput.classList.remove('error-border');
-            } else {
-                selectedCountry = '';
-            }
-            hideMessages();
-        });
-
-        countryInput.addEventListener('focus', function() {
-            if (this.value.trim() === '') {
-                showCountryDropdown(countries);
-            } else {
-                const query = this.value.toLowerCase();
-                const filtered = countries.filter(country =>
-                    country.toLowerCase().includes(query)
-                );
-                showCountryDropdown(filtered);
-            }
-        });
-
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.country-search') && e.target !== countryInput) {
-                countryDropdown.style.display = 'none';
-            }
-        });
-
-        // --- Twitter Username Logic ---
-        twitterUsernameElement.addEventListener('input', function() {
-            const username = this.value.trim();
-            let cleanedUsername = username;
-
-            if (cleanedUsername.startsWith('@')) {
-                cleanedUsername = cleanedUsername.substring(1);
-            }
-
-            currentTwitterUsername = cleanedUsername;
-
-            if (cleanedUsername) {
-                currentTwitterAvatarUrl = `https://unavatar.io/twitter/${cleanedUsername}?size=400`;
-                currentTwitterProfileUrl = `https://twitter.com/${cleanedUsername}`;
-
-                twitterAvatarPreviewElement.src = currentTwitterAvatarUrl;
-                twitterAvatarPreviewElement.style.display = 'block';
-
-                twitterProfileLinkElement.href = currentTwitterProfileUrl;
-                twitterProfileLinkElement.textContent = `@${cleanedUsername}`;
-                twitterProfileLinkElement.style.display = 'block';
-            } else {
-                twitterAvatarPreviewElement.style.display = 'none';
-                twitterAvatarPreviewElement.src = '';
-                twitterProfileLinkElement.style.display = 'none';
-                twitterProfileLinkElement.href = '#';
-                currentTwitterUsername = '';
-                currentTwitterAvatarUrl = '';
-                currentTwitterProfileUrl = '';
-            }
-            hideMessages();
-        });
-
-        // --- Map Styling for GeoJSON Countries (Dynamic Coloring) ---
-        let geoJsonCountryData = null; // To store the loaded GeoJSON data
-
-        async function loadGeoJsonCountryData() {
-            try {
-                // Убедитесь, что путь к файлу корректен относительно вашего HTML файла
-                const response = await fetch('data/ne_110m_admin_0_countries.geojson');
-                if (!response.ok) {
-                    throw new Error(`Failed to load GeoJSON data: ${response.statusText}`);
+                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                    e.target.bringToFront();
                 }
-                geoJsonCountryData = await response.json();
-                console.log('GeoJSON country data loaded:', geoJsonCountryData);
-            } catch (error) {
-                console.error('Error loading GeoJSON country data:', error);
-                displayMessage(errorMessage, `Failed to load map data: ${error.message}.`);
+            },
+            mouseout: function(e) {
+                // Reset to default style using styleCountryLayer
+                if (countriesGeoJsonLayer) {
+                    countriesGeoJsonLayer.resetStyle(e.target);
+                }
+            },
+            click: function(e) {
+                // If there's a specific country marker, fly to it and open its popup
+                if (countryMarkers[countryName]) {
+                    map.flyTo(countryMarkers[countryName].getLatLng(), map.getZoom() > 5 ? map.getZoom() : 5); // Zoom in a bit if too far
+                    countryMarkers[countryName].openPopup();
+                } else {
+                    // If no country marker, just fit bounds of the country
+                    map.fitBounds(e.target.getBounds());
+                }
             }
+        });
+    }
+}
+
+// --- Main Map & Stats Update Function ---
+function updateMapDisplayAndStats() {
+    if (!map) {
+        console.warn("Map not initialized. Skipping map update.");
+        return;
+    }
+
+    // 1. Update GeoJSON Layer (Country Borders)
+    if (countriesGeoJsonLayer) {
+        // If layer exists, simply reset its style to update colors based on current user counts
+        countriesGeoJsonLayer.eachLayer(layer => {
+            countriesGeoJsonLayer.setStyle(styleCountryLayer(layer.feature)); // Apply new style based on current user counts
+            // Also update the popup content for GeoJSON layers
+            const countryName = layer.feature.properties.NAME;
+            const usersInThisCountry = users.filter(user => user.country === countryName);
+            const userCount = usersInThisCountry.length;
+
+            let popupContent = `<div style="text-align: center;">
+                <div class="popup-name">${countryName}</div>`;
+
+            if (userCount > 0) {
+                popupContent += `<div class="popup-country">Users: ${userCount}</div>`;
+            } else {
+                popupContent += `<div class="popup-country">No users yet.</div>`;
+            }
+            popupContent += `</div>`;
+            layer.setPopupContent(popupContent);
+        });
+    } else if (geoJsonCountryData) {
+        // If layer doesn't exist yet (first load), add it
+        countriesGeoJsonLayer = L.geoJson(geoJsonCountryData, {
+            style: styleCountryLayer,
+            onEachFeature: onEachFeature
+        }).addTo(map);
+    }
+
+    // 2. Clear and Re-add Individual User Markers (using MarkerClusterGroup)
+    if (markers) {
+        markers.clearLayers();
+    } else {
+        markers = L.markerClusterGroup({
+            zoomToBoundsOnClick: true,
+            maxClusterRadius: 80,
+            disableClusteringAtZoom: 8
+        });
+        map.addLayer(markers);
+    }
+
+    users.forEach(user => {
+        const countryCoords = countryData[user.country];
+        if (countryCoords) {
+            const lat = user.lat || countryCoords.lat;
+            const lng = user.lng || countryCoords.lng;
+
+            // Use avatar URL directly from user data
+            const avatarSrc = user.avatar || 'https://via.placeholder.com/50x50.png?text=Anon';
+
+            const userIcon = L.icon({
+                iconUrl: avatarSrc,
+                iconSize: [50, 50],
+                iconAnchor: [25, 50],
+                popupAnchor: [0, -50],
+                className: 'user-marker-icon' // Optional: add class for custom styling
+            });
+
+            const marker = L.marker([lat, lng], { icon: userIcon });
+
+            // Create popup content for individual user
+            let popupContent = `<div class="popup-content">
+                <img src="${avatarSrc}" alt="Avatar" class="popup-avatar">
+                <div class="popup-name">${user.nickname || 'Anonymous'}</div>
+                <div class="popup-country">${user.country}</div>`;
+
+            // Use twitter_username and twitter_profile_url if available
+            if (user.twitter_username && user.twitter_profile_url) {
+                popupContent += `<a href="${user.twitter_profile_url}" target="_blank" class="popup-twitter-link">@${user.twitter_username}</a>`;
+            }
+            popupContent += `</div>`;
+
+            marker.bindPopup(popupContent);
+            markers.addLayer(marker);
+        } else {
+            console.warn(`Country data not found for: ${user.country}`);
         }
+    });
 
-        // New function to get color based on user count
-        function getCountryColor(userCount) {
-            if (userCount === 0) return '#333333'; // Dark grey for no users
-            if (userCount < 5) return '#50E3C2'; // Lighter green for few users
-            if (userCount < 15) return '#15DDB1'; // Mantle Green for some users
-            if (userCount < 30) return '#10C48B'; // Darker Mantle Green for more users
-            return '#0A7F5C'; // Even darker green for many users
+    // 3. Clear and Re-add Country Grouping Markers (L.circleMarker)
+    for (const country in countryMarkers) {
+        if (countryMarkers.hasOwnProperty(country)) {
+            map.removeLayer(countryMarkers[country]);
         }
+    }
+    countryMarkers = {}; // Reset country markers object
 
-        function styleCountryLayer(feature) {
-            const countryName = feature.properties.NAME;
-            const countryUserCounts = users.reduce((acc, user) => {
-                acc[user.country] = (acc[user.country] || 0) + 1;
-                return acc;
-            }, {});
-            const usersInCountry = countryUserCounts[countryName] || 0;
+    const usersByCountry = users.reduce((acc, user) => {
+        if (!acc[user.country]) {
+            acc[user.country] = [];
+        }
+        acc[user.country].push(user);
+        return acc;
+    }, {});
 
-            return {
-                fillColor: getCountryColor(usersInCountry),
+    for (const countryName in usersByCountry) {
+        const usersInCountry = usersByCountry[countryName];
+        const coords = countryData[countryName];
+
+        if (coords && usersInCountry.length > 0) {
+            const countryMarker = L.circleMarker([coords.lat, coords.lng], {
+                radius: 7 + Math.log(usersInCountry.length + 1) * 2,
+                fillColor: "#15DDB1", // Mantle Green for country circles
+                color: "#fff",
                 weight: 1,
                 opacity: 1,
-                color: '#333', // Darker border for country shapes
-                fillOpacity: 0.7
-            };
-        }
-
-        function onEachFeature(feature, layer) {
-            const countryName = feature.properties.NAME;
-
-            if (countryName) {
-                // Calculate user count for the popup immediately
-                const usersInThisCountry = users.filter(user => user.country === countryName);
-                const userCount = usersInThisCountry.length;
-
-                let popupContent = `<div style="text-align: center;">
-                    <div class="popup-name">${countryName}</div>`;
-
-                if (userCount > 0) {
-                    popupContent += `<div class="popup-country">Users: ${userCount}</div>`;
-                } else {
-                    popupContent += `<div class="popup-country">No users yet.</div>`;
-                }
-                popupContent += `</div>`;
-
-                layer.bindPopup(popupContent);
-
-                layer.on({
-                    mouseover: function(e) {
-                        e.target.setStyle({
-                            weight: 3,
-                            color: '#15DDB1', // Mantle Green border on hover
-                            dashArray: '',
-                            fillOpacity: 0.9
-                        });
-                        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-                            e.target.bringToFront();
-                        }
-                    },
-                    mouseout: function(e) {
-                        // Reset to default style using styleCountryLayer
-                        if (countriesGeoJsonLayer) {
-                            countriesGeoJsonLayer.resetStyle(e.target);
-                        }
-                    },
-                    click: function(e) {
-                        // If there's a specific country marker, fly to it and open its popup
-                        if (countryMarkers[countryName]) {
-                            map.flyTo(countryMarkers[countryName].getLatLng(), map.getZoom() > 5 ? map.getZoom() : 5); // Zoom in a bit if too far
-                            countryMarkers[countryName].openPopup();
-                        } else {
-                            // If no country marker, just fit bounds of the country
-                            map.fitBounds(e.target.getBounds());
-                        }
-                    }
-                });
-            }
-        }
-
-        // --- Main Map & Stats Update Function ---
-        function updateMapDisplayAndStats() {
-            if (!map) {
-                console.warn("Map not initialized. Skipping map update.");
-                return;
-            }
-
-            // 1. Update GeoJSON Layer (Country Borders)
-            if (countriesGeoJsonLayer) {
-                // If layer exists, simply reset its style to update colors based on current user counts
-                countriesGeoJsonLayer.eachLayer(layer => {
-                    countriesGeoJsonLayer.setStyle(styleCountryLayer(layer.feature)); // Apply new style based on current user counts
-                    // Also update the popup content for GeoJSON layers
-                    const countryName = layer.feature.properties.NAME;
-                    const usersInThisCountry = users.filter(user => user.country === countryName);
-                    const userCount = usersInThisCountry.length;
-
-                    let popupContent = `<div style="text-align: center;">
-                        <div class="popup-name">${countryName}</div>`;
-
-                    if (userCount > 0) {
-                        popupContent += `<div class="popup-country">Users: ${userCount}</div>`;
-                    } else {
-                        popupContent += `<div class="popup-country">No users yet.</div>`;
-                    }
-                    popupContent += `</div>`;
-                    layer.setPopupContent(popupContent);
-                });
-            } else if (geoJsonCountryData) {
-                // If layer doesn't exist yet (first load), add it
-                countriesGeoJsonLayer = L.geoJson(geoJsonCountryData, {
-                    style: styleCountryLayer,
-                    onEachFeature: onEachFeature
-                }).addTo(map);
-            }
-
-            // 2. Clear and Re-add Individual User Markers (using MarkerClusterGroup)
-            if (markers) {
-                markers.clearLayers();
-            } else {
-                markers = L.markerClusterGroup({
-                    zoomToBoundsOnClick: true,
-                    maxClusterRadius: 80,
-                    disableClusteringAtZoom: 8
-                });
-                map.addLayer(markers);
-            }
-
-            users.forEach(user => {
-                const countryCoords = countryData[user.country];
-                if (countryCoords) {
-                    const lat = user.lat || countryCoords.lat;
-                    const lng = user.lng || countryCoords.lng;
-
-                    // Use avatar URL directly from user data
-                    const avatarSrc = user.avatar || 'https://via.placeholder.com/50x50.png?text=Anon';
-
-                    const userIcon = L.icon({
-                        iconUrl: avatarSrc,
-                        iconSize: [50, 50],
-                        iconAnchor: [25, 50],
-                        popupAnchor: [0, -50],
-                        className: 'user-marker-icon' // Optional: add class for custom styling
-                    });
-
-                    const marker = L.marker([lat, lng], { icon: userIcon });
-
-                    // Create popup content for individual user
-                    let popupContent = `<div class="popup-content">
-                        <img src="${avatarSrc}" alt="Avatar" class="popup-avatar">
-                        <div class="popup-name">${user.nickname || 'Anonymous'}</div>
-                        <div class="popup-country">${user.country}</div>`;
-
-                    // Use twitter_username and twitter_profile_url if available
-                    if (user.twitter_username && user.twitter_profile_url) {
-                        popupContent += `<a href="${user.twitter_profile_url}" target="_blank" class="popup-twitter-link">@${user.twitter_username}</a>`;
-                    }
-                    popupContent += `</div>`;
-
-                    marker.bindPopup(popupContent);
-                    markers.addLayer(marker);
-                } else {
-                    console.warn(`Country data not found for: ${user.country}`);
-                }
-            });
-
-            // 3. Clear and Re-add Country Grouping Markers (L.circleMarker)
-            for (const country in countryMarkers) {
-                if (countryMarkers.hasOwnProperty(country)) {
-                    map.removeLayer(countryMarkers[country]);
-                }
-            }
-            countryMarkers = {}; // Reset country markers object
-
-            const usersByCountry = users.reduce((acc, user) => {
-                if (!acc[user.country]) {
-                    acc[user.country] = [];
-                }
-                acc[user.country].push(user);
-                return acc;
-            }, {});
-
-            for (const countryName in usersByCountry) {
-                const usersInCountry = usersByCountry[countryName];
-                const coords = countryData[countryName];
-
-                if (coords && usersInCountry.length > 0) {
-                    const countryMarker = L.circleMarker([coords.lat, coords.lng], {
-                        radius: 7 + Math.log(usersInCountry.length + 1) * 2,
-                        fillColor: "#15DDB1", // Mantle Green for country circles
-                        color: "#fff",
-                        weight: 1,
-                        opacity: 1,
-                        fillOpacity: 0.8
-                    }).addTo(map);
-
-                    let popupContent = `<div style="text-align: center;">
-                        <div class="popup-name">${countryName}</div>
-                        <div class="popup-country">Total Users: ${usersInCountry.length}</div>
-                        <div style="max-height: 150px; overflow-y: auto; margin-top: 10px; text-align: left; padding-right: 5px;">
-                            <ul style="list-style: none; padding: 0; margin: 0;">`;
-
-                    usersInCountry.sort((a, b) => (a.nickname || '').localeCompare(b.nickname || ''));
-
-                    usersInCountry.forEach(user => {
-                        const avatarSrc = user.avatar || 'https://via.placeholder.com/20x20.png?text=Anon';
-                        const twitterLink = user.twitter_username && user.twitter_profile_url ?
-                            `<a href="${user.twitter_profile_url}" target="_blank" class="popup-twitter-link">@${user.twitter_username}</a>` : '';
-
-                        popupContent += `
-                            <li style="padding: 5px 0; border-bottom: 1px dashed #333; display: flex; align-items: center; gap: 8px;">
-                                <img src="${avatarSrc}" class="popup-avatar" style="width: 30px; height: 30px; border: 1px solid #15DDB1; margin-bottom: 0;" alt="Avatar">
-                                <span style="flex-grow: 1;">${user.nickname || 'Anonymous'}</span>
-                                ${twitterLink}
-                            </li>`;
-                    });
-                    popupContent += `</ul></div></div>`;
-
-                    countryMarker.bindPopup(popupContent);
-                    countryMarkers[countryName] = countryMarker;
-                }
-            }
-
-            // 4. Update Stats
-            updateHeaderStats();
-            updateCountryListStats();
-
-            map.invalidateSize(); // Ensure map tiles render correctly
-        }
-
-        // --- Update Header Statistics (Users & Countries) ---
-        function updateHeaderStats() {
-            const totalUsers = users.length;
-            const countriesWithUsers = new Set(users.map(user => user.country)).size;
-            userCountHeaderElement.textContent = totalUsers;
-            countryCountHeaderElement.textContent = countriesWithUsers;
-        }
-
-        // --- Update Detailed Country List Statistics ---
-        function updateCountryListStats() {
-            const countryCounts = {};
-            users.forEach(user => {
-                countryCounts[user.country] = (countryCounts[user.country] || 0) + 1;
-            });
-
-            const sortedCountries = Object.entries(countryCounts).sort(([, countA], [, countB]) => countB - countA);
-
-            countryListElement.innerHTML = ''; // Clear existing list items
-
-            totalUsersCountElement.textContent = users.length;
-
-            sortedCountries.forEach(([country, count]) => {
-                const listItem = document.createElement('li');
-                listItem.innerHTML = `<span class="country-name">${country}</span> <span class="user-count">${count}</span>`;
-                countryListElement.appendChild(listItem);
-            });
-        }
-
-        // --- Functions to Interact with Backend ---
-        // Change the event listener from onclick to a proper event listener for the button
-        submitBtn.addEventListener('click', async function(event) {
-            event.preventDefault(); // Prevent default form submission behaviour
-
-            submitBtn.disabled = true;
-            hideMessages();
-            displayMessage(loadingMessage, 'Submitting your data...');
-
-            const nickname = currentTwitterUsername; // Use currentTwitterUsername as nickname
-            const country = selectedCountry; // Use selectedCountry
-
-            // Frontend validation
-            if (!nickname) {
-                displayMessage(errorMessage, 'Please enter your Twitter Username.');
-                submitBtn.disabled = false;
-                return;
-            }
-
-            if (!country) {
-                displayMessage(errorMessage, 'Please select a Country from the dropdown list.');
-                submitBtn.disabled = false;
-                countryInput.classList.add('error-border');
-                countryInput.focus();
-                return;
-            } else {
-                countryInput.classList.remove('error-border');
-            }
-
-            const countryCoords = countryData[country]; // Use 'country' here
-            if (!countryCoords) {
-                displayMessage(errorMessage, 'Coordinates for the selected country could not be found. Please try again.');
-                submitBtn.disabled = false;
-                countryInput.classList.add('error-border');
-                countryInput.focus();
-                return;
-            }
-
-            // --- hCaptcha verification ---
-            if (!hcaptchaReady) {
-                displayMessage(errorMessage, 'hCaptcha is still loading. Please wait a moment and try again.');
-                submitBtn.disabled = false;
-                return;
-            }
-
-            const hcaptchaResponse = hcaptcha.getResponse();
-            console.log('hCaptcha Response from frontend:', hcaptchaResponse);
-
-            if (!hcaptchaResponse) {
-                displayMessage(errorMessage, 'Please complete the hCaptcha verification.');
-                submitBtn.disabled = false;
-                return;
-            }
-            // --- End hCaptcha verification ---
-
-            const payload = {
-                nickname: nickname,
-                country: country,
-                lat: countryCoords.lat,
-                lng: countryCoords.lng,
-                avatar: currentTwitterAvatarUrl,
-                twitter_username: currentTwitterUsername,
-                twitter_profile_url: currentTwitterProfileUrl,
-                hcaptcha_response: hcaptchaResponse
-            };
-
-            try {
-                const response = await fetch(`${backendBaseUrl}/api/users`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payload),
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Network or server error.');
-                }
-
-                const newUser = await response.json();
-                users.push(newUser);
-
-                // Reset form and hCaptcha
-                countryInput.value = '';
-                selectedCountry = '';
-                twitterUsernameElement.value = '';
-                twitterAvatarPreviewElement.style.display = 'none';
-                twitterAvatarPreviewElement.src = '';
-                twitterProfileLinkElement.style.display = 'none';
-                twitterProfileLinkElement.href = '#';
-                currentTwitterUsername = '';
-                currentTwitterAvatarUrl = '';
-                currentTwitterProfileUrl = '';
-                hcaptcha.reset(); // Reset hCaptcha after successful submission
-
-                displayMessage(successMessage);
-                await fetchUsers(); // Refresh map and stats
-            } catch (error) {
-                console.error('Error submitting user:', error);
-                displayMessage(errorMessage, `An error occurred: ${error.message}. Please try again.`);
-                hcaptcha.reset(); // Reset hCaptcha on error as well
-            } finally {
-                submitBtn.disabled = false;
-            }
-        });
-
-
-        async function fetchUsers() {
-            displayMessage(loadingMessage, 'Loading users and map data...');
-            try {
-                const response = await fetch(`${backendBaseUrl}/api/users`); // Corrected URL
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Failed to load users from the server.');
-                }
-                const data = await response.json();
-                users = data; // Update the global users array
-                updateMapDisplayAndStats(); // Update map and all stats
-                hideMessages(); // Hide loading message on success
-            } catch (error) {
-                console.error('Error loading users from backend:', error);
-                displayMessage(errorMessage, `Failed to load data: ${error.message}. Please try again later.`);
-                users = []; // Clear users if there's an error
-                updateMapDisplayAndStats(); // Update map and stats to reflect empty data
-            }
-        }
-
-        // --- Map Initialization ---
-        async function initMap() {
-            const mapElement = document.getElementById('map');
-            if (!mapElement) {
-                console.error("Element with ID 'map' not found in DOM. Map will not be initialized.");
-                return;
-            }
-
-            if (map) { // Destroy existing map instance if it was created before
-                map.remove();
-            }
-
-            map = L.map('map').setView([20, 0], 2); // Centered globally, zoom level 2
-
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-                subdomains: 'abcd',
-                maxZoom: 19
+                fillOpacity: 0.8
             }).addTo(map);
 
-            // Load GeoJSON data first
-            await loadGeoJsonCountryData();
-            // Then fetch users and update map and stats after GeoJSON is loaded
-            await fetchUsers();
+            let popupContent = `<div style="text-align: center;">
+                <div class="popup-name">${countryName}</div>
+                <div class="popup-country">Total Users: ${usersInCountry.length}</div>
+                <div style="max-height: 150px; overflow-y: auto; margin-top: 10px; text-align: left; padding-right: 5px;">
+                    <ul style="list-style: none; padding: 0; margin: 0;">`;
+
+            usersInCountry.sort((a, b) => (a.nickname || '').localeCompare(b.nickname || ''));
+
+            usersInCountry.forEach(user => {
+                const avatarSrc = user.avatar || 'https://via.placeholder.com/20x20.png?text=Anon';
+                const twitterLink = user.twitter_username && user.twitter_profile_url ?
+                    `<a href="${user.twitter_profile_url}" target="_blank" class="popup-twitter-link">@${user.twitter_username}</a>` : '';
+
+                popupContent += `
+                    <li style="padding: 5px 0; border-bottom: 1px dashed #333; display: flex; align-items: center; gap: 8px;">
+                        <img src="${avatarSrc}" class="popup-avatar" style="width: 30px; height: 30px; border: 1px solid #15DDB1; margin-bottom: 0;" alt="Avatar">
+                        <span style="flex-grow: 1;">${user.nickname || 'Anonymous'}</span>
+                        ${twitterLink}
+                    </li>`;
+            });
+            popupContent += `</ul></div></div>`;
+
+            countryMarker.bindPopup(popupContent);
+            countryMarkers[countryName] = countryMarker;
+        }
+    }
+
+    // 4. Update Stats
+    updateHeaderStats();
+    updateCountryListStats();
+
+    map.invalidateSize(); // Ensure map tiles render correctly
+}
+
+// --- Update Header Statistics (Users & Countries) ---
+function updateHeaderStats() {
+    const totalUsers = users.length;
+    const countriesWithUsers = new Set(users.map(user => user.country)).size;
+    userCountHeaderElement.textContent = totalUsers;
+    countryCountHeaderElement.textContent = countriesWithUsers;
+}
+
+// --- Update Detailed Country List Statistics ---
+function updateCountryListStats() {
+    const countryCounts = {};
+    users.forEach(user => {
+        countryCounts[user.country] = (countryCounts[user.country] || 0) + 1;
+    });
+
+    const sortedCountries = Object.entries(countryCounts).sort(([, countA], [, countB]) => countB - countA);
+
+    countryListElement.innerHTML = ''; // Clear existing list items
+
+    totalUsersCountElement.textContent = users.length;
+
+    sortedCountries.forEach(([country, count]) => {
+        const listItem = document.createElement('li');
+        listItem.innerHTML = `<span class="country-name">${country}</span> <span class="user-count">${count}</span>`;
+        countryListElement.appendChild(listItem);
+    });
+}
+
+// --- Functions to Interact with Backend ---
+// Change the event listener from onclick to a proper event listener for the button
+submitBtn.addEventListener('click', async function(event) {
+    event.preventDefault(); // Prevent default form submission behaviour
+
+    submitBtn.disabled = true;
+    hideMessages();
+    displayMessage(loadingMessage, 'Submitting your data...');
+
+    const nickname = currentTwitterUsername; // Use currentTwitterUsername as nickname
+    const country = selectedCountry; // Use selectedCountry
+
+    // Frontend validation
+    if (!nickname) {
+        displayMessage(errorMessage, 'Please enter your Twitter Username.');
+        submitBtn.disabled = false;
+        return;
+    }
+
+    if (!country) {
+        displayMessage(errorMessage, 'Please select a Country from the dropdown list.');
+        submitBtn.disabled = false;
+        countryInput.classList.add('error-border');
+        countryInput.focus();
+        return;
+    } else {
+        countryInput.classList.remove('error-border');
+    }
+
+    const countryCoords = countryData[country]; // Use 'country' here
+    if (!countryCoords) {
+        displayMessage(errorMessage, 'Coordinates for the selected country could not be found. Please try again.');
+        submitBtn.disabled = false;
+        countryInput.classList.add('error-border');
+        countryInput.focus();
+        return;
+    }
+
+    const payload = {
+        nickname: nickname,
+        country: country,
+        lat: countryCoords.lat,
+        lng: countryCoords.lng,
+        avatar: currentTwitterAvatarUrl,
+        twitter_username: currentTwitterUsername,
+        twitter_profile_url: currentTwitterProfileUrl,
+    };
+
+    try {
+        const response = await fetch(`${backendBaseUrl}/api/users`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Network or server error.');
         }
 
-        // Initialize map and fetch users when the DOM is fully loaded
+        const newUser = await response.json();
+        users.push(newUser);
+
+        // Reset form
+        countryInput.value = '';
+        selectedCountry = '';
+        twitterUsernameElement.value = '';
+        twitterAvatarPreviewElement.style.display = 'none';
+        twitterAvatarPreviewElement.src = '';
+        twitterProfileLinkElement.style.display = 'none';
+        twitterProfileLinkElement.href = '#';
+        currentTwitterUsername = '';
+        currentTwitterAvatarUrl = '';
+        currentTwitterProfileUrl = '';
+
+        displayMessage(successMessage);
+        await fetchUsers(); // Refresh map and stats
+    } catch (error) {
+        console.error('Error submitting user:', error);
+        displayMessage(errorMessage, `An error occurred: ${error.message}. Please try again.`);
+    } finally {
+        submitBtn.disabled = false;
+    }
+});
+
+
+async function fetchUsers() {
+    displayMessage(loadingMessage, 'Loading users and map data...');
+    try {
+        const response = await fetch(`${backendBaseUrl}/api/users`); // Corrected URL
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to load users from the server.');
+        }
+        const data = await response.json();
+        users = data; // Update the global users array
+        updateMapDisplayAndStats(); // Update map and all stats
+        hideMessages(); // Hide loading message on success
+    } catch (error) {
+        console.error('Error loading users from backend:', error);
+        displayMessage(errorMessage, `Failed to load data: ${error.message}. Please try again later.`);
+        users = []; // Clear users if there's an error
+        updateMapDisplayAndStats(); // Update map and stats to reflect empty data
+    }
+}
+
+// --- Map Initialization ---
+async function initMap() {
+    const mapElement = document.getElementById('map');
+    if (!mapElement) {
+        console.error("Element with ID 'map' not found in DOM. Map will not be initialized.");
+        return;
+    }
+
+    if (map) { // Destroy existing map instance if it was created before
+        map.remove();
+    }
+
+    map = L.map('map').setView([20, 0], 2); // Centered globally, zoom level 2
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Load GeoJSON data first
+    await loadGeoJsonCountryData();
+    // Then fetch users and update map and stats after GeoJSON is loaded
+    await fetchUsers();
+}
+
+// Initialize map and fetch users when the DOM is fully loaded
+document.addEventListener('DOMContentLoaded', initMap);
+// Инициализация карты и получение пользователей при полной загрузке DOM
         document.addEventListener('DOMContentLoaded', initMap);
 
     </script>
