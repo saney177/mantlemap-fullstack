@@ -1,16 +1,22 @@
-require('dotenv').config(); // Загружает переменные окружения из .env файла
+require('dotenv').config(); // Р—Р°РіСЂСѓР¶Р°РµС‚ РїРµСЂРµРјРµРЅРЅС‹Рµ РѕРєСЂСѓР¶РµРЅРёСЏ РёР· .env С„Р°Р№Р»Р°
 const express = require('express');
 const passport = require('passport');
 const TwitterStrategy = require('passport-twitter').Strategy;
 const session = require('express-session');
+<<<<<<< HEAD
 const cors = require('cors'); // Для управления CORS
 const mongoose = require('mongoose'); // Для работы с MongoDB
+=======
+const cors = require('cors'); // Р”Р»СЏ СѓРїСЂР°РІР»РµРЅРёСЏ CORS
+const mongoose = require('mongoose'); // Р”Р»СЏ СЂР°Р±РѕС‚С‹ СЃ MongoDB
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 const rateLimit = require('express-rate-limit');
 const limiter = rateLimit({
+<<<<<<< HEAD
   windowMs: 15 * 60 * 1000, // 15 минут
   max: 100 // максимум 100 запросов с одного IP
 });
@@ -21,8 +27,20 @@ app.use('/api/', limiter);
 mongoose.connect(process.env.MONGODB_URI || 'ВАШ_ПУТЬ_К_MONGODB')
   .then(() => console.log('Подключено к MongoDB!'))
   .catch(err => console.error('Ошибка подключения к MongoDB:', err));
+=======
+  windowMs: 15 * 60 * 1000, // 15 РјРёРЅСѓС‚
+  max: 100 // РјР°РєСЃРёРјСѓРј 100 Р·Р°РїСЂРѕСЃРѕРІ СЃ РѕРґРЅРѕРіРѕ IP
+});
+app.use('/api/', limiter);
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 
-// --- ОПРЕДЕЛЕНИЕ СХЕМЫ И МОДЕЛИ MONGODB ---
+// --- РџРћР”РљР›Р®Р§Р•РќРР• Рљ MONGODB ---
+// РЈР±РµРґРёС‚РµСЃСЊ, С‡С‚Рѕ process.env.MONGODB_URI СѓСЃС‚Р°РЅРѕРІР»РµРЅ (РЅР°РїСЂРёРјРµСЂ, РІ С„Р°Р№Р»Рµ .env)
+mongoose.connect(process.env.MONGODB_URI || 'Р’РђРЁ_РџРЈРўР¬_Рљ_MONGODB')
+  .then(() => console.log('РџРѕРґРєР»СЋС‡РµРЅРѕ Рє MongoDB!'))
+  .catch(err => console.error('РћС€РёР±РєР° РїРѕРґРєР»СЋС‡РµРЅРёСЏ Рє MongoDB:', err));
+
+// --- РћРџР Р•Р”Р•Р›Р•РќРР• РЎРҐР•РњР« Р РњРћР”Р•Р›Р MONGODB ---
 const userSchema = new mongoose.Schema({
     nickname: { type: String, required: true, unique: true },
     country: { type: String, required: true },
@@ -31,28 +49,37 @@ const userSchema = new mongoose.Schema({
     avatar: { type: String },
     twitter_username: { type: String, unique: true, sparse: true },
     twitter_profile_url: { type: String }
-}, { timestamps: true }); // Добавляет поля createdAt и updatedAt
+}, { timestamps: true }); // Р”РѕР±Р°РІР»СЏРµС‚ РїРѕР»СЏ createdAt Рё updatedAt
 
 const User = mongoose.model('User', userSchema);
 
 // --- MIDDLEWARE ---
-// Middleware для обработки JSON-запросов
+// Middleware РґР»СЏ РѕР±СЂР°Р±РѕС‚РєРё JSON-Р·Р°РїСЂРѕСЃРѕРІ
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Настройка CORS
+// РќР°СЃС‚СЂРѕР№РєР° CORS
 app.use(cors({
+<<<<<<< HEAD
     origin: ['https://mantlemap.xyz', 'https://mantlemap.xyz/index-map'], // Разрешенные домены
+=======
+    origin: ['https://mantlemap.xyz', 'https://mantlemap.xyz/index-map'], // Р Р°Р·СЂРµС€РµРЅРЅС‹Рµ РґРѕРјРµРЅС‹
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));
 
+<<<<<<< HEAD
 // --- SESSION И PASSPORT ИНИЦИАЛИЗАЦИЯ ---
+=======
+// --- SESSION Р PASSPORT РРќРР¦РРђР›РР—РђР¦РРЇ ---
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true
 }));
+<<<<<<< HEAD
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -96,35 +123,94 @@ passport.deserializeUser (async (id, done) => {
 });
 
 // --- МАРШРУТЫ API ---
+=======
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 
-// Простой маршрут для проверки работы сервера
+app.use(passport.initialize());
+app.use(passport.session());
+
+// --- PASSPORT TWITTER STRATEGY ---
+passport.use(new TwitterStrategy({
+    consumerKey: process.env.TWITTER_CONSUMER_KEY,
+    consumerSecret: process.env.TWITTER_CONSUMER_SECRET,
+    callbackURL: "https://mantlemap.xyz/index-map/auth/twitter/callback" // РћР±РЅРѕРІРёС‚Рµ РґР»СЏ РїСЂРѕРґР°РєС€РµРЅР°
+}, async (token, tokenSecret, profile, done) => {
+    try {
+        // РџСЂРѕРІРµСЂСЏРµРј, СЃСѓС‰РµСЃС‚РІСѓРµС‚ Р»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ
+        let user = await User.findOne({ twitter_username: profile.username });
+        if (!user) {
+            // РЎРѕР·РґР°РµРј РЅРѕРІРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ, РµСЃР»Рё РЅРµ РЅР°Р№РґРµРЅ
+            user = new User({
+                nickname: profile.displayName,
+                avatar: profile.photos[0].value,
+                twitter_username: profile.username,
+                twitter_profile_url: profile.profileUrl,
+                // РЈСЃС‚Р°РЅРѕРІРёС‚Рµ Р·РЅР°С‡РµРЅРёСЏ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РґР»СЏ СЃС‚СЂР°РЅС‹, С€РёСЂРѕС‚С‹ Рё РґРѕР»РіРѕС‚С‹, РµСЃР»Рё РЅРµРѕР±С…РѕРґРёРјРѕ
+                country: 'Unknown',
+                lat: 0,
+                lng: 0
+            });
+            await user.save();
+        }
+        return done(null, user);
+    } catch (error) {
+        return done(error);
+    }
+}));
+
+passport.serializeUser ((user, done) => {
+    done(null, user.id);
+});
+
+passport.deserializeUser (async (id, done) => {
+    const user = await User.findById(id);
+    done(null, user);
+});
+
+// --- РњРђР РЁР РЈРўР« API ---
+
+// РџСЂРѕСЃС‚РѕР№ РјР°СЂС€СЂСѓС‚ РґР»СЏ РїСЂРѕРІРµСЂРєРё СЂР°Р±РѕС‚С‹ СЃРµСЂРІРµСЂР°
 app.get('/', (req, res) => {
     res.send('API Server is running!');
 });
 
+<<<<<<< HEAD
 // Twitter аутентификация
+=======
+// Twitter Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёСЏ
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 app.get('/auth/twitter', passport.authenticate('twitter'));
 
 app.get('/auth/twitter/callback', 
     passport.authenticate('twitter', { failureRedirect: '/' }),
     (req, res) => {
+<<<<<<< HEAD
         // Успешная аутентификация, перенаправляем на ваш фронтенд или панель управления
         res.redirect('https://mantlemap.xyz/index-map'); // Перенаправление на ваш фронтенд
     }
 );
 
 // Маршрут для получения всех пользователей из MongoDB
+=======
+        // РЈСЃРїРµС€РЅР°СЏ Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёСЏ, РїРµСЂРµРЅР°РїСЂР°РІР»СЏРµРј РЅР° РІР°С€ С„СЂРѕРЅС‚РµРЅРґ РёР»Рё РїР°РЅРµР»СЊ СѓРїСЂР°РІР»РµРЅРёСЏ
+        res.redirect('https://mantlemap.xyz/index-map'); // РџРµСЂРµРЅР°РїСЂР°РІР»РµРЅРёРµ РЅР° РІР°С€ С„СЂРѕРЅС‚РµРЅРґ
+    }
+);
+
+// РњР°СЂС€СЂСѓС‚ РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ РІСЃРµС… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· MongoDB
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 app.get('/api/users', async (req, res) => {
     try {
-        const users = await User.find({}); // Получаем всех пользователей из коллекции
-        console.log(`Получено ${users.length} пользователей из БД.`);
-        res.status(200).json(users); // Отправляем пользователей как JSON
+        const users = await User.find({}); // РџРѕР»СѓС‡Р°РµРј РІСЃРµС… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· РєРѕР»Р»РµРєС†РёРё
+        console.log(`РџРѕР»СѓС‡РµРЅРѕ ${users.length} РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· Р‘Р”.`);
+        res.status(200).json(users); // РћС‚РїСЂР°РІР»СЏРµРј РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РєР°Рє JSON
     } catch (error) {
-        console.error('Ошибка при получении пользователей из MongoDB:', error);
-        res.status(500).json({ message: 'Внутренняя ошибка сервера при получении пользователей.' });
+        console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· MongoDB:', error);
+        res.status(500).json({ message: 'Р’РЅСѓС‚СЂРµРЅРЅСЏСЏ РѕС€РёР±РєР° СЃРµСЂРІРµСЂР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№.' });
     }
 });
 
+<<<<<<< HEAD
 require('dotenv').config(); // Загружает переменные окружения из .env файла
 const passport = require('passport');
 const TwitterStrategy = require('passport-twitter').Strategy;
@@ -132,12 +218,23 @@ const session = require('express-session');
 const cors = require('cors'); // Для управления CORS
 const mongoose = require('mongoose'); // Для работы с MongoDB
 const axios = require('axios'); // Добавлено для верификации hCaptcha
+=======
+require('dotenv').config(); // Р—Р°РіСЂСѓР¶Р°РµС‚ РїРµСЂРµРјРµРЅРЅС‹Рµ РѕРєСЂСѓР¶РµРЅРёСЏ РёР· .env С„Р°Р№Р»Р°
+const express = require('express');
+const passport = require('passport');
+const TwitterStrategy = require('passport-twitter').Strategy;
+const session = require('express-session');
+const cors = require('cors'); // Р”Р»СЏ СѓРїСЂР°РІР»РµРЅРёСЏ CORS
+const mongoose = require('mongoose'); // Р”Р»СЏ СЂР°Р±РѕС‚С‹ СЃ MongoDB
+const axios = require('axios'); // Р”РѕР±Р°РІР»РµРЅРѕ РґР»СЏ РІРµСЂРёС„РёРєР°С†РёРё hCaptcha
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 const rateLimit = require('express-rate-limit');
 const limiter = rateLimit({
+<<<<<<< HEAD
     windowMs: 15 * 60 * 1000, // 15 минут
     max: 100 // максимум 100 запросов с одного IP
 });
@@ -150,6 +247,20 @@ mongoose.connect(process.env.MONGODB_URI || 'ВАШ_ПУТЬ_К_MONGODB')
     .catch(err => console.error('Ошибка подключения к MongoDB:', err));
 
 // --- ОПРЕДЕЛЕНИЕ СХЕМЫ И МОДЕЛИ MONGODB ---
+=======
+    windowMs: 15 * 60 * 1000, // 15 РјРёРЅСѓС‚
+    max: 100 // РјР°РєСЃРёРјСѓРј 100 Р·Р°РїСЂРѕСЃРѕРІ СЃ РѕРґРЅРѕРіРѕ IP
+});
+app.use('/api/', limiter);
+
+// --- РџРћР”РљР›Р®Р§Р•РќРР• Рљ MONGODB ---
+// РЈР±РµРґРёС‚РµСЃСЊ, С‡С‚Рѕ process.env.MONGODB_URI СѓСЃС‚Р°РЅРѕРІР»РµРЅ (РЅР°РїСЂРёРјРµСЂ, РІ С„Р°Р№Р»Рµ .env)
+mongoose.connect(process.env.MONGODB_URI || 'Р’РђРЁ_РџРЈРўР¬_Рљ_MONGODB')
+    .then(() => console.log('РџРѕРґРєР»СЋС‡РµРЅРѕ Рє MongoDB!'))
+    .catch(err => console.error('РћС€РёР±РєР° РїРѕРґРєР»СЋС‡РµРЅРёСЏ Рє MongoDB:', err));
+
+// --- РћРџР Р•Р”Р•Р›Р•РќРР• РЎРҐР•РњР« Р РњРћР”Р•Р›Р MONGODB ---
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 const userSchema = new mongoose.Schema({
     nickname: { type: String, required: true, unique: true },
     country: { type: String, required: true },
@@ -158,6 +269,7 @@ const userSchema = new mongoose.Schema({
     avatar: { type: String },
     twitter_username: { type: String, unique: true, sparse: true },
     twitter_profile_url: { type: String }
+<<<<<<< HEAD
 }, { timestamps: true }); // Добавляет поля createdAt и updatedAt
 
 const User = mongoose.model('User', userSchema); // Исправлен пробел в 'User '
@@ -170,11 +282,29 @@ app.use(express.urlencoded({ extended: true }));
 // Настройка CORS
 app.use(cors({
     origin: ['https://mantlemap.xyz', 'https://mantlemap.xyz/index-map'], // Разрешенные домены
+=======
+}, { timestamps: true }); // Р”РѕР±Р°РІР»СЏРµС‚ РїРѕР»СЏ createdAt Рё updatedAt
+
+const User = mongoose.model('User', userSchema); // РСЃРїСЂР°РІР»РµРЅ РїСЂРѕР±РµР» РІ 'User '
+
+// --- MIDDLEWARE ---
+// Middleware РґР»СЏ РѕР±СЂР°Р±РѕС‚РєРё JSON-Р·Р°РїСЂРѕСЃРѕРІ
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// РќР°СЃС‚СЂРѕР№РєР° CORS
+app.use(cors({
+    origin: ['https://mantlemap.xyz', 'https://mantlemap.xyz/index-map'], // Р Р°Р·СЂРµС€РµРЅРЅС‹Рµ РґРѕРјРµРЅС‹
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));
 
+<<<<<<< HEAD
 // --- SESSION И PASSPORT ИНИЦИАЛИЗАЦИЯ ---
+=======
+// --- SESSION Р PASSPORT РРќРР¦РРђР›РР—РђР¦РРЇ ---
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
@@ -188,6 +318,7 @@ app.use(passport.session());
 passport.use(new TwitterStrategy({
     consumerKey: process.env.TWITTER_CONSUMER_KEY,
     consumerSecret: process.env.TWITTER_CONSUMER_SECRET,
+<<<<<<< HEAD
     callbackURL: "https://mantlemap.xyz/index-map/auth/twitter/callback" // Обновите для продакшена
 }, async (token, tokenSecret, profile, done) => {
     try {
@@ -195,12 +326,25 @@ passport.use(new TwitterStrategy({
         let user = await User.findOne({ twitter_username: profile.username });
         if (!user) {
             // Создаем нового пользователя, если не найден
+=======
+    callbackURL: "https://mantlemap.xyz/index-map/auth/twitter/callback" // РћР±РЅРѕРІРёС‚Рµ РґР»СЏ РїСЂРѕРґР°РєС€РµРЅР°
+}, async (token, tokenSecret, profile, done) => {
+    try {
+        // РџСЂРѕРІРµСЂСЏРµРј, СЃСѓС‰РµСЃС‚РІСѓРµС‚ Р»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ
+        let user = await User.findOne({ twitter_username: profile.username });
+        if (!user) {
+            // РЎРѕР·РґР°РµРј РЅРѕРІРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ, РµСЃР»Рё РЅРµ РЅР°Р№РґРµРЅ
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
             user = new User({
                 nickname: profile.displayName,
                 avatar: profile.photos[0].value,
                 twitter_username: profile.username,
                 twitter_profile_url: profile.profileUrl,
+<<<<<<< HEAD
                 // Установите значения по умолчанию для страны, широты и долготы, если необходимо
+=======
+                // РЈСЃС‚Р°РЅРѕРІРёС‚Рµ Р·РЅР°С‡РµРЅРёСЏ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РґР»СЏ СЃС‚СЂР°РЅС‹, С€РёСЂРѕС‚С‹ Рё РґРѕР»РіРѕС‚С‹, РµСЃР»Рё РЅРµРѕР±С…РѕРґРёРјРѕ
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
                 country: 'Unknown',
                 lat: 0,
                 lng: 0
@@ -222,19 +366,30 @@ passport.deserializeUser(async (id, done) => {
     done(null, user);
 });
 
+<<<<<<< HEAD
 // --- МАРШРУТЫ API ---
 
 // Простой маршрут для проверки работы сервера
+=======
+// --- РњРђР РЁР РЈРўР« API ---
+
+// РџСЂРѕСЃС‚РѕР№ РјР°СЂС€СЂСѓС‚ РґР»СЏ РїСЂРѕРІРµСЂРєРё СЂР°Р±РѕС‚С‹ СЃРµСЂРІРµСЂР°
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 app.get('/', (req, res) => {
     res.send('API Server is running!');
 });
 
+<<<<<<< HEAD
 // Twitter аутентификация
+=======
+// Twitter Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёСЏ
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 app.get('/auth/twitter', passport.authenticate('twitter'));
 
 app.get('/auth/twitter/callback',
     passport.authenticate('twitter', { failureRedirect: '/' }),
     (req, res) => {
+<<<<<<< HEAD
         // Успешная аутентификация, перенаправляем на ваш фронтенд или панель управления
         res.redirect('https://mantlemap.xyz'); // Перенаправление на ваш фронтенд
     }
@@ -255,14 +410,41 @@ app.get('/api/users', async (req, res) => {
 // --- Маршрут для регистрации пользователя (с hCaptcha) ---
 app.post('/api/users', async (req, res) => {
     // Получаем данные из тела запроса, включая hcaptcha_response
+=======
+        // РЈСЃРїРµС€РЅР°СЏ Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёСЏ, РїРµСЂРµРЅР°РїСЂР°РІР»СЏРµРј РЅР° РІР°С€ С„СЂРѕРЅС‚РµРЅРґ РёР»Рё РїР°РЅРµР»СЊ СѓРїСЂР°РІР»РµРЅРёСЏ
+        res.redirect('https://mantlemap.xyz'); // РџРµСЂРµРЅР°РїСЂР°РІР»РµРЅРёРµ РЅР° РІР°С€ С„СЂРѕРЅС‚РµРЅРґ
+    }
+);
+
+// РњР°СЂС€СЂСѓС‚ РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ РІСЃРµС… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· MongoDB
+app.get('/api/users', async (req, res) => {
+    try {
+        const users = await User.find({}); // РџРѕР»СѓС‡Р°РµРј РІСЃРµС… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· РєРѕР»Р»РµРєС†РёРё
+        console.log(`РџРѕР»СѓС‡РµРЅРѕ ${users.length} РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· Р‘Р”.`);
+        res.status(200).json(users); // РћС‚РїСЂР°РІР»СЏРµРј РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РєР°Рє JSON
+    } catch (error) {
+        console.error('РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· MongoDB:', error);
+        res.status(500).json({ message: 'Р’РЅСѓС‚СЂРµРЅРЅСЏСЏ РѕС€РёР±РєР° СЃРµСЂРІРµСЂР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№.' });
+    }
+});
+
+// --- РњР°СЂС€СЂСѓС‚ РґР»СЏ СЂРµРіРёСЃС‚СЂР°С†РёРё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ (СЃ hCaptcha) ---
+app.post('/api/users', async (req, res) => {
+    // РџРѕР»СѓС‡Р°РµРј РґР°РЅРЅС‹Рµ РёР· С‚РµР»Р° Р·Р°РїСЂРѕСЃР°, РІРєР»СЋС‡Р°СЏ hcaptcha_response
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
     const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url, hcaptcha_response } = req.body;
 
-    console.log('Получены данные:', { nickname, country });
+    console.log('РџРѕР»СѓС‡РµРЅС‹ РґР°РЅРЅС‹Рµ:', { nickname, country });
 
-    // 1. Валидация на стороне сервера: проверка обязательных полей
+    // 1. Р’Р°Р»РёРґР°С†РёСЏ РЅР° СЃС‚РѕСЂРѕРЅРµ СЃРµСЂРІРµСЂР°: РїСЂРѕРІРµСЂРєР° РѕР±СЏР·Р°С‚РµР»СЊРЅС‹С… РїРѕР»РµР№
     if (!nickname || !country || lat === undefined || lng === undefined) {
-        console.warn('Отсутствуют обязательные поля:', { nickname, country, lat, lng });
-        return res.status(400).json({ message: 'Отсутствуют обязательные поля (никнейм, страна или координаты).' });
+        console.warn('РћС‚СЃСѓС‚СЃС‚РІСѓСЋС‚ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РїРѕР»СЏ:', { nickname, country, lat, lng });
+        return res.status(400).json({ message: 'РћС‚СЃСѓС‚СЃС‚РІСѓСЋС‚ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РїРѕР»СЏ (РЅРёРєРЅРµР№Рј, СЃС‚СЂР°РЅР° РёР»Рё РєРѕРѕСЂРґРёРЅР°С‚С‹).' });
+    }
+
+    // 2. hCaptcha Verification
+    if (!hcaptcha_response) {
+        return res.status(400).json({ message: 'hCaptcha response is missing.' });
     }
 
     // 2. hCaptcha Verification
@@ -272,7 +454,11 @@ app.post('/api/users', async (req, res) => {
 
     try {
         const hcaptchaVerifyUrl = 'https://hcaptcha.com/siteverify';
+<<<<<<< HEAD
         const hcaptchaSecret = process.env.HCAPTCHA_SECRET_KEY; // Убедитесь, что эта переменная окружения установлена
+=======
+        const hcaptchaSecret = process.env.HCAPTCHA_SECRET_KEY; // РЈР±РµРґРёС‚РµСЃСЊ, С‡С‚Рѕ СЌС‚Р° РїРµСЂРµРјРµРЅРЅР°СЏ РѕРєСЂСѓР¶РµРЅРёСЏ СѓСЃС‚Р°РЅРѕРІР»РµРЅР°
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 
         if (!hcaptchaSecret) {
             console.error('HCAPTCHA_SECRET_KEY is not defined in environment variables.');
@@ -295,7 +481,11 @@ app.post('/api/users', async (req, res) => {
         // If success is true, continue with user creation/update
         // ... rest of your user saving logic
 
+<<<<<<< HEAD
         // 3. Сохраняем пользователя в MongoDB
+=======
+        // 3. РЎРѕС…СЂР°РЅСЏРµРј РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РІ MongoDB
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
         const newUser = new User({
             nickname,
             country,
@@ -306,13 +496,14 @@ app.post('/api/users', async (req, res) => {
             twitter_profile_url
         });
 
-        await newUser.save(); // Сохраняем нового пользователя в базу данных
-        console.log(`Пользователь ${nickname} из ${country} успешно зарегистрирован и сохранен в БД!`);
+        await newUser.save(); // РЎРѕС…СЂР°РЅСЏРµРј РЅРѕРІРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РІ Р±Р°Р·Сѓ РґР°РЅРЅС‹С…
+        console.log(`РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ ${nickname} РёР· ${country} СѓСЃРїРµС€РЅРѕ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅ Рё СЃРѕС…СЂР°РЅРµРЅ РІ Р‘Р”!`);
 
-        // Возвращаем новосозданного пользователя с ID из БД
-        res.status(201).json(newUser); // 201 Created - для успешного создания ресурса
+        // Р’РѕР·РІСЂР°С‰Р°РµРј РЅРѕРІРѕСЃРѕР·РґР°РЅРЅРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ СЃ ID РёР· Р‘Р”
+        res.status(201).json(newUser); // 201 Created - РґР»СЏ СѓСЃРїРµС€РЅРѕРіРѕ СЃРѕР·РґР°РЅРёСЏ СЂРµСЃСѓСЂСЃР°
 
     } catch (error) {
+<<<<<<< HEAD
         // Обработка ошибок MongoDB и hCaptcha
         if (error.code === 11000) { // Код ошибки MongoDB для дубликатов ключей
             console.warn('Попытка дубликата пользователя:', error.message);
@@ -353,6 +544,48 @@ async function migrateUsers() {
 migrateUsers();
 
 // --- ЗАПУСК СЕРВЕРА ---
+=======
+        // РћР±СЂР°Р±РѕС‚РєР° РѕС€РёР±РѕРє MongoDB Рё hCaptcha
+        if (error.code === 11000) { // РљРѕРґ РѕС€РёР±РєРё MongoDB РґР»СЏ РґСѓР±Р»РёРєР°С‚РѕРІ РєР»СЋС‡РµР№
+            console.warn('РџРѕРїС‹С‚РєР° РґСѓР±Р»РёРєР°С‚Р° РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ:', error.message);
+            return res.status(409).json({ message: 'РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЃ С‚Р°РєРёРј РЅРёРєРЅРµР№РјРѕРј РёР»Рё РёРјРµРЅРµРј РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ Twitter СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚.', details: error.message });
+        }
+
+        // Р•СЃР»Рё СЌС‚Рѕ РѕС€РёР±РєР° axios РёР»Рё РґСЂСѓРіР°СЏ РѕС€РёР±РєР°, РЅРµ СЃРІСЏР·Р°РЅРЅР°СЏ СЃ РґСѓР±Р»РёРєР°С‚Р°РјРё
+        if (axios.isAxiosError(error)) {
+            console.error('РћС€РёР±РєР° РїСЂРё Р·Р°РїСЂРѕСЃРµ Рє hCaptcha:', error.message);
+            return res.status(500).json({ message: 'РћС€РёР±РєР° РїСЂРё РІРµСЂРёС„РёРєР°С†РёРё hCaptcha.', details: error.message });
+        }
+
+        console.error('РќРµРёР·РІРµСЃС‚РЅР°СЏ РѕС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё РІ Р‘Р”:', error.message);
+        return res.status(500).json({ message: 'РќРµРёР·РІРµСЃС‚РЅР°СЏ РѕС€РёР±РєР° РїСЂРё РѕР±СЂР°Р±РѕС‚РєРµ Р·Р°РїСЂРѕСЃР°.', details: error.message });
+    }
+});
+
+// --- РњРР“Р РђР¦РРЇ РЎРЈР©Р•РЎРўР’РЈР®Р©РРҐ РџРћР›Р¬Р—РћР’РђРўР•Р›Р•Р™ ---
+async function migrateUsers() {
+    try {
+        const users = await User.find({}); // РџРѕР»СѓС‡Р°РµРј РІСЃРµС… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
+        for (const user of users) {
+            // РџСЂРѕРІРµСЂСЏРµРј, РµСЃС‚СЊ Р»Рё Сѓ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ Twitter username
+            if (!user.twitter_username) {
+                // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј Twitter username Рё profile URL, РµСЃР»Рё РѕРЅРё РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‚
+                user.twitter_username = user.nickname; // РџСЂРёРјРµСЂ: РёСЃРїРѕР»СЊР·СѓРµРј nickname РєР°Рє Twitter username
+                user.twitter_profile_url = `https://twitter.com/${user.twitter_username}`;
+                await user.save(); // РЎРѕС…СЂР°РЅСЏРµРј РѕР±РЅРѕРІР»РµРЅРЅРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
+            }
+        }
+        console.log('РњРёРіСЂР°С†РёСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ Р·Р°РІРµСЂС€РµРЅР° СѓСЃРїРµС€РЅРѕ.');
+    } catch (error) {
+        console.error('РћС€РёР±РєР° РІРѕ РІСЂРµРјСЏ РјРёРіСЂР°С†РёРё:', error);
+    }
+}
+
+// Р—Р°РїСѓСЃРєР°РµРј РјРёРіСЂР°С†РёСЋ РїСЂРё СЃС‚Р°СЂС‚Рµ СЃРµСЂРІРµСЂР°
+migrateUsers();
+
+// --- Р—РђРџРЈРЎРљ РЎР•Р Р’Р•Р Рђ ---
+>>>>>>> 061c5f6c200047a220e987f7eff2b47502740e57
 app.listen(port, () => {
-    console.log(`Сервер запущен на порту ${port}`);
+    console.log(`РЎРµСЂРІРµСЂ Р·Р°РїСѓС‰РµРЅ РЅР° РїРѕСЂС‚Сѓ ${port}`);
 });
