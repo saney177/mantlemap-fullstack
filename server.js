@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema({
     ip_address: { type: String } // Для хранения IP-адреса пользователя
 }, { timestamps: true });
 
-const User = mongoose.model('User  ', userSchema);
+const User = mongoose.model('User ', userSchema);
 
 // --- MIDDLEWARE ---
 // Middleware для обработки JSON-запросов
@@ -40,16 +40,11 @@ app.use(cors({
 
 // --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЮЗЕРНЕЙМА В TWITTER ---
 async function checkTwitterUsername(username) {
-    const url = `https://api.twitter.com/1.1/users/show.json?screen_name=${username}`;
+    const url = `https://twitter.com/${username}`;
     try {
-        const response = await axios.get(url, {
-            headers: {
-                'Authorization': `Bearer ${process.env.TWITTER_BEARER_TOKEN}`
-            }
-        });
-        return response.data && response.data.id; // Если пользователь найден, возвращаем его ID
+        const response = await axios.get(url);
+        return response.status === 200; // Если статус 200, юзернейм существует
     } catch (error) {
-        console.error('Ошибка при проверке юзернейма:', error.response ? error.response.data : error.message);
         return false; // Если ошибка, юзернейм не существует
     }
 }
@@ -74,58 +69,56 @@ app.get('/api/users', async (req, res) => {
 });
 
 // Маршрут для регистрации пользователя
+// Маршрут для регистрации пользователя
 app.post('/api/users', async (req, res) => {
     const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
-    const ipAddress = req.ip; // Получаем IP-адрес пользователя
+    // Получаем IP-адрес пользователя
+const ipAddress = req.ip; 
 
-    console.log('Получены данные:', { nickname, country });
+console.log('Получены данные:', { nickname, country });
 
-    // 1. Валидация на стороне сервера: проверка обязательных полей
-    if (!nickname || !country || lat === undefined || lng === undefined) {
-        console.warn('Отсутствуют обязательные поля:', { nickname, country, lat, lng });
-        return res.status(400).json({ message: 'Отсутствуют обязательные поля (никнейм, страна или координаты).' });
+// 1. Валидация на стороне сервера: проверка обязательных полей
+if (!nickname || !country || lat === undefined || lng === undefined) {
+    console.warn('Отсутствуют обязательные поля:', { nickname, country, lat, lng });
+    return res.status(400).json({ message: 'Отсутствуют обязательные поля (никнейм, страна или координаты).' });
+}
+
+// 3. Проверка на количество аккаунтов по IP-адресу
+const userCount = await User.countDocuments({ ip_address: ipAddress });
+const maxAccountsPerIP = 3; // Максимальное количество аккаунтов на один IP
+
+if (userCount >= maxAccountsPerIP) {
+    return res.status(403).json({ message: `Достигнуто максимальное количество аккаунтов (${maxAccountsPerIP}) на один IP-адрес.` });
+}
+
+try {
+    const newUser   = new User({
+        nickname,
+        country,
+        lat,
+        lng,
+        avatar,
+        twitter_username,
+        twitter_profile_url,
+        ip_address: ipAddress // Сохраняем IP-адрес
+    });
+
+    await newUser .save();
+    console.log(`Пользователь ${nickname} из ${country} успешно зарегистрирован и сохранен в БД!`);
+    res.status(201).json(newUser  );
+
+} catch (error) {
+    if (error.code === 11000) {
+        console.warn('Попытка дубликата пользователя:', error.message);
+        return res.status(409).json({ message: 'Пользователь с таким никнеймом или именем пользователя Twitter уже существует.', details: error.message });
     }
+    
+    console.error('Неизвестная ошибка при сохранении в БД:', error.message);
+    return res.status(500).json({ message: 'Неизвестная ошибка при обработке запроса.', details: error.message });
+}
 
-    // 2. Проверка существования юзернейма в Twitter
-    const isTwitterUser   = await checkTwitterUsername(twitter_username);
-    if (!isTwitterUser  ) {
-        return res.status(400).json({ message: 'Юзернейм Twitter не существует.' });
-    }
-
-    // 3. Проверка на количество аккаунтов по IP-адресу
-    const userCount = await User.countDocuments({ ip_address: ipAddress });
-    const maxAccountsPerIP = 1; // Максимальное количество аккаунтов на один IP
-
-    if (userCount >= maxAccountsPerIP) {
-        return res.status(403).json({ message: `Достигнуто максимальное количество аккаунтов (${maxAccountsPerIP}) на один IP-адрес.` });
-    }
-
-    try {
-        const newUser   = new User({
-            nickname,
-            country,
-            lat,
-            lng,
-            avatar,
-            twitter_username,
-            twitter_profile_url,
-            ip_address: ipAddress // Сохраняем IP-адрес
-        });
-
-        await newUser  .save();
-        console.log(`Пользователь ${nickname} из ${country} успешно зарегистрирован и сохранен в БД!`);
-        res.status(201).json(newUser  );
-
-    } catch (error) {
-        if (error.code === 11000) {
-            console.warn('Попытка дубликата пользователя:', error.message);
-            return res.status(409).json({ message: 'Пользователь с таким никнеймом или именем пользователя Twitter уже существует.', details: error.message });
-        }
-        
-        console.error('Неизвестная ошибка при сохранении в БД:', error.message);
-        return res.status(500).json({ message: 'Неизвестная ошибка при обработке запроса.', details: error.message });
-    }
 });
+
 
 // --- ЗАПУСК СЕРВЕРА ---
 app.listen(port, () => {
