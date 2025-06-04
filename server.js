@@ -86,13 +86,13 @@ app.post('/api/users', async (req, res) => {
 
     // 2. Проверка существования юзернейма в Twitter
     const isTwitterUserValid = await checkTwitterUsername(twitter_username); // Исправлено здесь
-    if (!isTwitterUser Valid) {
+    if (!isTwitterUserValid) {
         return res.status(400).json({ message: 'Юзернейм Twitter не существует.' });
     }
 
     // 3. Проверка на количество аккаунтов по IP-адресу
     const userCount = await User.countDocuments({ ip_address: ipAddress });
-    const maxAccountsPerIP = 3; // Максимальное количество аккаунтов на один IP
+    const maxAccountsPerIP = 2; // Максимальное количество аккаунтов на один IP
 
     if (userCount >= maxAccountsPerIP) {
         return res.status(403).json({ message: `Достигнуто максимальное количество аккаунтов (${maxAccountsPerIP}) на один IP-адрес.` });
