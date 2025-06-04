@@ -71,6 +71,7 @@ app.get('/api/users', async (req, res) => {
 // Маршрут для регистрации пользователя
 // Маршрут для регистрации пользователя
 // Маршрут для регистрации пользователя
+// Маршрут для регистрации пользователя
 app.post('/api/users', async (req, res) => {
     const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
     const ipAddress = req.ip; // Получаем IP-адрес пользователя
@@ -84,7 +85,7 @@ app.post('/api/users', async (req, res) => {
     }
 
     // 2. Проверка существования юзернейма в Twitter
-    const isTwitterUser Valid = await checkTwitterUsername(twitter_username);
+    const isTwitterUserValid = await checkTwitterUsername(twitter_username); // Исправлено здесь
     if (!isTwitterUser Valid) {
         return res.status(400).json({ message: 'Юзернейм Twitter не существует.' });
     }
