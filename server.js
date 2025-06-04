@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema({
     ip_address: { type: String } // Для хранения IP-адреса пользователя
 }, { timestamps: true });
 
-const User = mongoose.model('User ', userSchema);
+const User = mongoose.model('User  ', userSchema);
 
 // --- MIDDLEWARE ---
 // Middleware для обработки JSON-запросов
@@ -40,11 +40,16 @@ app.use(cors({
 
 // --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЮЗЕРНЕЙМА В TWITTER ---
 async function checkTwitterUsername(username) {
-    const url = `https://twitter.com/${username}`;
+    const url = `https://api.twitter.com/1.1/users/show.json?screen_name=${username}`;
     try {
-        const response = await axios.get(url);
-        return response.status === 200; // Если статус 200, юзернейм существует
+        const response = await axios.get(url, {
+            headers: {
+                'Authorization': `Bearer ${process.env.TWITTER_BEARER_TOKEN}`
+            }
+        });
+        return response.data && response.data.id; // Если пользователь найден, возвращаем его ID
     } catch (error) {
+        console.error('Ошибка при проверке юзернейма:', error.response ? error.response.data : error.message);
         return false; // Если ошибка, юзернейм не существует
     }
 }
@@ -82,8 +87,8 @@ app.post('/api/users', async (req, res) => {
     }
 
     // 2. Проверка существования юзернейма в Twitter
-    const isTwitterUser  = await checkTwitterUsername(twitter_username);
-    if (!isTwitterUser ) {
+    const isTwitterUser   = await checkTwitterUsername(twitter_username);
+    if (!isTwitterUser  ) {
         return res.status(400).json({ message: 'Юзернейм Twitter не существует.' });
     }
 
@@ -96,7 +101,7 @@ app.post('/api/users', async (req, res) => {
     }
 
     try {
-        const newUser  = new User({
+        const newUser   = new User({
             nickname,
             country,
             lat,
@@ -107,9 +112,9 @@ app.post('/api/users', async (req, res) => {
             ip_address: ipAddress // Сохраняем IP-адрес
         });
 
-        await newUser .save();
+        await newUser  .save();
         console.log(`Пользователь ${nickname} из ${country} успешно зарегистрирован и сохранен в БД!`);
-        res.status(201).json(newUser );
+        res.status(201).json(newUser  );
 
     } catch (error) {
         if (error.code === 11000) {
