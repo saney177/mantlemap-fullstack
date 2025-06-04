@@ -3,7 +3,6 @@ const express = require('express');
 const axios = require('axios'); // Для проверки юзернейма в Twitter
 const cors = require('cors'); // Для управления CORS
 const mongoose = require('mongoose'); // Для работы с MongoDB
-const Twitter = require('twitter-lite'); // Импортируем библиотеку Twitter
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -44,12 +43,19 @@ app.use(cors({
     allowedHeaders: ['Content-Type']
 }));
 
+
 // --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЮЗЕРНЕЙМА В TWITTER ---
 async function checkTwitterUsername(username) {
+    const url = `https://api.twitter.com/1.1/users/show.json?screen_name=${username}`;
     try {
-        const user = await client.get("users/show", { screen_name: username });
-        return !!user; // Если пользователь найден, возвращаем true
+        const response = await axios.get(url, {
+            headers: {
+                'Authorization': `Bearer ${process.env.TWITTER_BEARER_TOKEN}`
+            }
+        });
+        return response.data && response.data.id; // Если пользователь найден, возвращаем его ID
     } catch (error) {
+        console.error('Ошибка при проверке юзернейма:', error.response ? error.response.data : error.message);
         return false; // Если ошибка, юзернейм не существует
     }
 }
