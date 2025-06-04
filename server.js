@@ -69,9 +69,6 @@ app.get('/api/users', async (req, res) => {
 });
 
 // Маршрут для регистрации пользователя
-// Маршрут для регистрации пользователя
-// Маршрут для регистрации пользователя
-// Маршрут для регистрации пользователя
 app.post('/api/users', async (req, res) => {
     const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
     const ipAddress = req.ip; // Получаем IP-адрес пользователя
@@ -85,14 +82,14 @@ app.post('/api/users', async (req, res) => {
     }
 
     // 2. Проверка существования юзернейма в Twitter
-    const isTwitterUserValid = await checkTwitterUsername(twitter_username); // Исправлено здесь
-    if (!isTwitterUserValid) {
+    const isTwitterUser  = await checkTwitterUsername(twitter_username);
+    if (!isTwitterUser ) {
         return res.status(400).json({ message: 'Юзернейм Twitter не существует.' });
     }
 
     // 3. Проверка на количество аккаунтов по IP-адресу
     const userCount = await User.countDocuments({ ip_address: ipAddress });
-    const maxAccountsPerIP = 2; // Максимальное количество аккаунтов на один IP
+    const maxAccountsPerIP = 3; // Максимальное количество аккаунтов на один IP
 
     if (userCount >= maxAccountsPerIP) {
         return res.status(403).json({ message: `Достигнуто максимальное количество аккаунтов (${maxAccountsPerIP}) на один IP-адрес.` });
@@ -110,12 +107,12 @@ app.post('/api/users', async (req, res) => {
             ip_address: ipAddress // Сохраняем IP-адрес
         });
 
-        await newUser .save(); // Сохраняем нового пользователя в базу данных
+        await newUser .save();
         console.log(`Пользователь ${nickname} из ${country} успешно зарегистрирован и сохранен в БД!`);
-        res.status(201).json(newUser ); // 201 Created - для успешного создания ресурса
+        res.status(201).json(newUser );
 
     } catch (error) {
-        if (error.code === 11000) { // Код ошибки MongoDB для дубликатов ключей
+        if (error.code === 11000) {
             console.warn('Попытка дубликата пользователя:', error.message);
             return res.status(409).json({ message: 'Пользователь с таким никнеймом или именем пользователя Twitter уже существует.', details: error.message });
         }
@@ -123,4 +120,9 @@ app.post('/api/users', async (req, res) => {
         console.error('Неизвестная ошибка при сохранении в БД:', error.message);
         return res.status(500).json({ message: 'Неизвестная ошибка при обработке запроса.', details: error.message });
     }
+});
+
+// --- ЗАПУСК СЕРВЕРА ---
+app.listen(port, () => {
+    console.log(`Сервер запущен на порту ${port}`);
 });
