@@ -82,12 +82,6 @@ app.post('/api/users', async (req, res) => {
         return res.status(400).json({ message: 'Отсутствуют обязательные поля (никнейм, страна или координаты).' });
     }
 
-    // 2. Проверка существования юзернейма в Twitter
-    const isTwitterUser Valid = await checkTwitterUsername(twitter_username); // Исправлено здесь
-    if (!isTwitterUser Valid) {
-        return res.status(400).json({ message: 'Юзернейм Twitter не существует.' });
-    }
-
     // 3. Проверка на уникальность по IP-адресу
     const existingUser  = await User.findOne({ ip_address: ipAddress });
     if (existingUser ) {
