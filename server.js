@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema({
     ip_address: { type: String } // Добавлено поле для IP-адреса
 }, { timestamps: true });
 
-const User = mongoose.model('User ', userSchema);
+const Users = mongoose.model('Users ', userSchema);
 
 // --- MIDDLEWARE ---
 // Middleware для обработки JSON-запросов
