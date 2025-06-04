@@ -1,5 +1,6 @@
 require('dotenv').config(); // Загружает переменные окружения из .env файла
 const express = require('express');
+const axios = require('axios'); // Все еще нужен, если планируете другие HTTP-запросы, но не для капчи
 const cors = require('cors'); // Для управления CORS
 const mongoose = require('mongoose'); // Для работы с MongoDB
 
@@ -24,8 +25,7 @@ const userSchema = new mongoose.Schema({
     ip_address: { type: String } // Добавлено поле для IP-адреса
 }, { timestamps: true });
 
-// Исправлено: убран лишний пробел в имени модели
-const User = mongoose.model('User ', userSchema); // Теперь будет использовать коллекцию 'users'
+const User = mongoose.model('User', userSchema);
 
 // --- MIDDLEWARE ---
 // Middleware для обработки JSON-запросов
@@ -60,15 +60,14 @@ app.get('/api/users', async (req, res) => {
     }
 });
 
-// Маршрут для регистрации пользователя
+// Маршрут для регистрации пользователя (без hCaptcha)
 app.post('/api/users', async (req, res) => {
-    // Получаем данные из тела запроса
-    const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
+    // Получаем данные из тела запроса (hcaptcha_response здесь больше не нужен)
+    const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url, hcaptcha_response } = req.body;
 
     console.log('Получены данные:', { nickname, country });
 
-    const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-
+const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     try {
         // Проверяем, есть ли уже пользователь с этим IP
         const existingUser  = await User.findOne({ ip_address: ip });
@@ -76,14 +75,15 @@ app.post('/api/users', async (req, res) => {
             return res.status(409).json({ message: 'A user from this IP address is already registered.' });
         }
 
-        // Валидация на стороне сервера: проверка обязательных полей
-        if (!nickname || !country || lat === undefined || lng === undefined) {
-            console.warn('Required fields are missing:', { nickname, country, lat, lng });
-            return res.status(400).json({ message: 'Missing mandatory fields (nickname, country).' });
-        }
+    // 1. Валидация на стороне сервера: проверка обязательных полей
+    if (!nickname || !country || !hcaptcha_response  || lat === undefined || lng === undefined) {
+        console.warn('Required fields are missing:', { nickname, country, lat, lng });
+        return res.status(400).json({ message: 'Missing mandatory fields (nickname, country).' });
+    }
 
+    try {
         // Сохраняем пользователя в MongoDB
-        const newUser  = new User({
+        const newUser = new User({
             nickname,
             country,
             lat,
@@ -94,11 +94,11 @@ app.post('/api/users', async (req, res) => {
             ip_address: ip // Сохраняем IP-адрес пользователя
         });
 
-        await newUser .save(); // Сохраняем нового пользователя в базу данных
+        await newUser.save(); // Сохраняем нового пользователя в базу данных
         console.log(`Пользователь ${nickname} из ${country} успешно зарегистрирован и сохранен в БД!`);
 
         // Возвращаем новосозданного пользователя с ID из БД
-        res.status(201).json(newUser ); // 201 Created - для успешного создания ресурса
+        res.status(201).json(newUser); // 201 Created - для успешного создания ресурса
 
     } catch (error) {
         // Обработка ошибок MongoDB
