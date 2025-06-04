@@ -21,11 +21,10 @@ const userSchema = new mongoose.Schema({
     lng: { type: Number, required: true },
     avatar: { type: String },
     twitter_username: { type: String, unique: true, sparse: true },
-    twitter_profile_url: { type: String },
-    ip_address: { type: String } // Добавлено поле для IP-адреса
-}, { timestamps: true });
+    twitter_profile_url: { type: String }
+}, { timestamps: true }); // Добавляет поля createdAt и updatedAt
 
-const User = mongoose.model('User ', userSchema);
+const User = mongoose.model('User', userSchema);
 
 // --- MIDDLEWARE ---
 // Middleware для обработки JSON-запросов
@@ -56,59 +55,50 @@ app.get('/api/users', async (req, res) => {
         res.status(200).json(users); // Отправляем пользователей как JSON
     } catch (error) {
         console.error('Ошибка при получении пользователей из MongoDB:', error);
-        res.status(500).json({ message: 'Internal server error while retrieving users.' });
+        res.status(500).json({ message: 'Внутренняя ошибка сервера при получении пользователей.' });
     }
 });
 
 // Маршрут для регистрации пользователя (без hCaptcha)
 app.post('/api/users', async (req, res) => {
-    // Получаем данные из тела запроса
+    // Получаем данные из тела запроса (hcaptcha_response здесь больше не нужен)
     const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
 
     console.log('Получены данные:', { nickname, country });
 
-    const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    // 1. Валидация на стороне сервера: проверка обязательных полей
+    if (!nickname || !country || lat === undefined || lng === undefined) {
+        console.warn('Отсутствуют обязательные поля:', { nickname, country, lat, lng });
+        return res.status(400).json({ message: 'Отсутствуют обязательные поля (никнейм, страна или координаты).' });
+    }
 
     try {
-        // Проверяем, есть ли уже пользователь с этим IP
-        const existingUser  = await User.findOne({ ip_address: ip });
-        if (existingUser ) {
-            return res.status(409).json({ message: 'A user from this IP address is already registered.' });
-        }
-
-        // 1. Валидация на стороне сервера: проверка обязательных полей
-        if (!nickname || !country || lat === undefined || lng === undefined) {
-            console.warn('Required fields are missing:', { nickname, country, lat, lng });
-            return res.status(400).json({ message: 'Missing mandatory fields (nickname, country).' });
-        }
-
         // Сохраняем пользователя в MongoDB
-        const newUser  = new User({
+        const newUser = new User({
             nickname,
             country,
             lat,
             lng,
             avatar,
             twitter_username,
-            twitter_profile_url,
-            ip_address: ip // Сохраняем IP-адрес пользователя
+            twitter_profile_url
         });
 
-        await newUser .save(); // Сохраняем нового пользователя в базу данных
+        await newUser.save(); // Сохраняем нового пользователя в базу данных
         console.log(`Пользователь ${nickname} из ${country} успешно зарегистрирован и сохранен в БД!`);
 
         // Возвращаем новосозданного пользователя с ID из БД
-        res.status(201).json(newUser ); // 201 Created - для успешного создания ресурса
+        res.status(201).json(newUser); // 201 Created - для успешного создания ресурса
 
     } catch (error) {
         // Обработка ошибок MongoDB
         if (error.code === 11000) { // Код ошибки MongoDB для дубликатов ключей
             console.warn('Попытка дубликата пользователя:', error.message);
-            return res.status(409).json({ message: 'A user with that Twitter nickname or username already exists.', details: error.message });
+            return res.status(409).json({ message: 'Пользователь с таким никнеймом или именем пользователя Twitter уже существует.', details: error.message });
         }
         
         console.error('Неизвестная ошибка при сохранении в БД:', error.message);
-        return res.status(500).json({ message: 'An unknown error occurred while processing the request.', details: error.message });
+        return res.status(500).json({ message: 'Неизвестная ошибка при обработке запроса.', details: error.message });
     }
 });
 
