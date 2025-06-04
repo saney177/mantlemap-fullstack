@@ -21,8 +21,9 @@ const userSchema = new mongoose.Schema({
     lng: { type: Number, required: true },
     avatar: { type: String },
     twitter_username: { type: String, unique: true, sparse: true },
-    twitter_profile_url: { type: String }
-}, { timestamps: true }); // Добавляет поля createdAt и updatedAt
+    twitter_profile_url: { type: String },
+    ip_address: { type: String } // Добавлено поле для IP-адреса
+}, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
 
@@ -55,21 +56,29 @@ app.get('/api/users', async (req, res) => {
         res.status(200).json(users); // Отправляем пользователей как JSON
     } catch (error) {
         console.error('Ошибка при получении пользователей из MongoDB:', error);
-        res.status(500).json({ message: 'Внутренняя ошибка сервера при получении пользователей.' });
+        res.status(500).json({ message: 'Internal server error while retrieving users.' });
     }
 });
 
 // Маршрут для регистрации пользователя (без hCaptcha)
 app.post('/api/users', async (req, res) => {
     // Получаем данные из тела запроса (hcaptcha_response здесь больше не нужен)
-    const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
+    const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url, hcaptcha_response } = req.body;
 
     console.log('Получены данные:', { nickname, country });
 
+const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    try {
+        // Проверяем, есть ли уже пользователь с этим IP
+        const existingUser  = await User.findOne({ ip_address: ip });
+        if (existingUser ) {
+            return res.status(409).json({ message: 'A user from this IP address is already registered.' });
+        }
+
     // 1. Валидация на стороне сервера: проверка обязательных полей
-    if (!nickname || !country || lat === undefined || lng === undefined) {
-        console.warn('Отсутствуют обязательные поля:', { nickname, country, lat, lng });
-        return res.status(400).json({ message: 'Отсутствуют обязательные поля (никнейм, страна или координаты).' });
+    if (!nickname || !country || !hcaptcha_response  || lat === undefined || lng === undefined) {
+        console.warn('Required fields are missing:', { nickname, country, lat, lng });
+        return res.status(400).json({ message: 'Missing mandatory fields (nickname, country).' });
     }
 
     try {
@@ -81,7 +90,8 @@ app.post('/api/users', async (req, res) => {
             lng,
             avatar,
             twitter_username,
-            twitter_profile_url
+            twitter_profile_url,
+            ip_address: ip // Сохраняем IP-адрес пользователя
         });
 
         await newUser.save(); // Сохраняем нового пользователя в базу данных
@@ -94,11 +104,11 @@ app.post('/api/users', async (req, res) => {
         // Обработка ошибок MongoDB
         if (error.code === 11000) { // Код ошибки MongoDB для дубликатов ключей
             console.warn('Попытка дубликата пользователя:', error.message);
-            return res.status(409).json({ message: 'Пользователь с таким никнеймом или именем пользователя Twitter уже существует.', details: error.message });
+            return res.status(409).json({ message: 'A user with that Twitter nickname or username already exists.', details: error.message });
         }
         
         console.error('Неизвестная ошибка при сохранении в БД:', error.message);
-        return res.status(500).json({ message: 'Неизвестная ошибка при обработке запроса.', details: error.message });
+        return res.status(500).json({ message: 'An unknown error occurred while processing the request.', details: error.message });
     }
 });
 
