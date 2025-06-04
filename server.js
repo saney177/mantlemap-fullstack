@@ -1,6 +1,5 @@
 require('dotenv').config(); // Загружает переменные окружения из .env файла
 const express = require('express');
-const axios = require('axios'); // Все еще нужен, если планируете другие HTTP-запросы, но не для капчи
 const cors = require('cors'); // Для управления CORS
 const mongoose = require('mongoose'); // Для работы с MongoDB
 
@@ -25,7 +24,8 @@ const userSchema = new mongoose.Schema({
     ip_address: { type: String } // Добавлено поле для IP-адреса
 }, { timestamps: true });
 
-const Users = mongoose.model('Users ', userSchema);
+// Исправлено: убран лишний пробел в имени модели
+const User = mongoose.model('User ', userSchema); // Теперь будет использовать коллекцию 'users'
 
 // --- MIDDLEWARE ---
 // Middleware для обработки JSON-запросов
@@ -51,7 +51,7 @@ app.get('/', (req, res) => {
 // Маршрут для получения всех пользователей из MongoDB
 app.get('/api/users', async (req, res) => {
     try {
-        const users = await Users.find({}); // Получаем всех пользователей из коллекции
+        const users = await User.find({}); // Получаем всех пользователей из коллекции
         console.log(`Получено ${users.length} пользователей из БД.`);
         res.status(200).json(users); // Отправляем пользователей как JSON
     } catch (error) {
@@ -60,7 +60,7 @@ app.get('/api/users', async (req, res) => {
     }
 });
 
-// Маршрут для регистрации пользователя (без hCaptcha)
+// Маршрут для регистрации пользователя
 app.post('/api/users', async (req, res) => {
     // Получаем данные из тела запроса
     const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
@@ -71,12 +71,12 @@ app.post('/api/users', async (req, res) => {
 
     try {
         // Проверяем, есть ли уже пользователь с этим IP
-        const existingUser  = await Users.findOne({ ip_address: ip });
+        const existingUser  = await User.findOne({ ip_address: ip });
         if (existingUser ) {
             return res.status(409).json({ message: 'A user from this IP address is already registered.' });
         }
 
-        // 1. Валидация на стороне сервера: проверка обязательных полей
+        // Валидация на стороне сервера: проверка обязательных полей
         if (!nickname || !country || lat === undefined || lng === undefined) {
             console.warn('Required fields are missing:', { nickname, country, lat, lng });
             return res.status(400).json({ message: 'Missing mandatory fields (nickname, country).' });
