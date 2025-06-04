@@ -51,7 +51,7 @@ app.get('/', (req, res) => {
 // Маршрут для получения всех пользователей из MongoDB
 app.get('/api/users', async (req, res) => {
     try {
-        const users = await User.find({}); // Получаем всех пользователей из коллекции
+        const users = await Users.find({}); // Получаем всех пользователей из коллекции
         console.log(`Получено ${users.length} пользователей из БД.`);
         res.status(200).json(users); // Отправляем пользователей как JSON
     } catch (error) {
@@ -71,7 +71,7 @@ app.post('/api/users', async (req, res) => {
 
     try {
         // Проверяем, есть ли уже пользователь с этим IP
-        const existingUser  = await User.findOne({ ip_address: ip });
+        const existingUser  = await Users.findOne({ ip_address: ip });
         if (existingUser ) {
             return res.status(409).json({ message: 'A user from this IP address is already registered.' });
         }
