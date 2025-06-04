@@ -40,7 +40,7 @@ app.use(cors({
 
 // --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЮЗЕРНЕЙМА В TWITTER ---
 async function checkTwitterUsername(username) {
-    const url = `https://twitter.com/${username}`;
+    const url = `https://unavatar.io/twitter/${username}?size=400`;
     try {
         const response = await axios.get(url);
         return response.status === 200; // Если статус 200, юзернейм существует
