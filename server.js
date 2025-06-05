@@ -229,66 +229,162 @@ function checkTwitterUsernameWhitelist(username) {
     return false;
 }
 
-// --- ФУНКЦИЯ ПРОВЕРКИ ЧЕРЕЗ МНОЖЕСТВЕННЫЕ API ---
+// --- ОБНОВЛЕННАЯ ФУНКЦИЯ С РАБОЧИМИ API ---
 async function checkTwitterMultipleAPIs(username) {
     if (!process.env.RAPIDAPI_KEY) {
         console.log('⚠️ RapidAPI ключ не настроен');
-        return false;
+        return null;
     }
 
+    console.log(`🔧 Проверяем @${username} через обновленные API`);
+
     const apis = [
+        // 1. Twitter X API (новый, популярный)
         {
-            name: 'RapidAPI Twitter API v2',
-            url: `https://twitter-api47.p.rapidapi.com/v2/user/by/username/${username}`,
+            name: 'Twitter X API',
+            url: `https://twitter-x.p.rapidapi.com/user/by/username/${username}`,
             headers: {
                 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-                'X-RapidAPI-Host': 'twitter-api47.p.rapidapi.com'
-            }
+                'X-RapidAPI-Host': 'twitter-x.p.rapidapi.com'
+            },
+            checkSuccess: (data) => data && (data.data?.username || data.username)
         },
+        
+        // 2. Twitter AIO (активно поддерживается)
         {
-            name: 'Twitter API v1',
+            name: 'Twitter AIO',
+            url: `https://twitter-aio.p.rapidapi.com/user/by/username/${username}`,
+            headers: {
+                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+                'X-RapidAPI-Host': 'twitter-aio.p.rapidapi.com'
+            },
+            checkSuccess: (data) => data && (data.username || data.screen_name || data.user?.username)
+        },
+        
+        // 3. Twitter v2.3 (T-Social)
+        {
+            name: 'Twitter v2.3',
+            url: `https://twitter-v23.p.rapidapi.com/user/by/username/${username}`,
+            headers: {
+                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+                'X-RapidAPI-Host': 'twitter-v23.p.rapidapi.com'
+            },
+            checkSuccess: (data) => data && (data.data?.username || data.username)
+        },
+        
+        // 4. Старые API как fallback
+        {
+            name: 'Twitter API v1 (fallback)',
             url: `https://twitter-api45.p.rapidapi.com/user.php?username=${username}`,
             headers: {
                 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
                 'X-RapidAPI-Host': 'twitter-api45.p.rapidapi.com'
-            }
+            },
+            checkSuccess: (data) => data && (data.username || data.screen_name)
         }
     ];
     
     for (const api of apis) {
         try {
             console.log(`🔄 Пробуем ${api.name} для @${username}`);
+            
             const response = await axios.get(api.url, {
                 headers: api.headers,
-                timeout: 8000
+                timeout: 10000
             });
             
-            if (response.data && (response.data.username || response.data.data?.username)) {
-                console.log(`✅ @${username} найден через ${api.name}`);
-                return true;
+            console.log(`📡 ${api.name} ответил: ${response.status}`);
+            
+            if (response.data) {
+                // Проверяем успех через кастомную функцию
+                if (api.checkSuccess(response.data)) {
+                    console.log(`✅ @${username} найден через ${api.name}`);
+                    return true;
+                }
+                
+                // Проверяем на ошибки
+                if (response.data.errors) {
+                    const error = response.data.errors[0];
+                    if (error.code === 50 || error.message?.includes('not found')) {
+                        console.log(`❌ @${username} не существует (${api.name})`);
+                        return false;
+                    }
+                    console.log(`⚠️ ${api.name} - ошибка:`, error);
+                } else {
+                    console.log(`❓ ${api.name} - неожиданный ответ:`, Object.keys(response.data));
+                }
             }
+            
         } catch (error) {
-            console.log(`⚠️ ${api.name} недоступен: ${error.response?.status || error.message}`);
+            const status = error.response?.status;
+            const errorData = error.response?.data;
+            
+            console.log(`❌ ${api.name} - Ошибка ${status}: ${error.message}`);
+            
+            if (status === 404) {
+                console.log(`❌ @${username} не существует (404 от ${api.name})`);
+                return false;
+            } else if (status === 403) {
+                console.log(`🚫 ${api.name} - доступ запрещен (возможно закончился лимит)`);
+                if (errorData) console.log(`📝 Детали:`, errorData);
+            } else if (status === 429) {
+                console.log(`⏰ ${api.name} - превышен лимит запросов`);
+            } else if (status === 401) {
+                console.log(`🔐 ${api.name} - проблема с авторизацией`);
+            }
         }
     }
     
-    return false;
+    console.log(`❌ Все API недоступны для @${username}`);
+    return null;
 }
 
-// --- МАРШРУТЫ API ---
-app.get('/', (req, res) => {
-    res.send('API Server is running!');
-});
-
-app.get('/api/users', async (req, res) => {
-    try {
-        const users = await User.find({});
-        console.log(`Получено ${users.length} пользователей из БД.`);
-        res.status(200).json(users);
-    } catch (error) {
-        console.error('Ошибка при получении пользователей из MongoDB:', error);
-        res.status(500).json({ message: 'Внутренняя ошибка сервера при получении пользователей.' });
+// --- ФУНКЦИЯ ПРОВЕРКИ СТАТУСА RAPIDAPI ---
+async function checkRapidAPIStatus() {
+    console.log('🔍 Проверяем статус RapidAPI подключения...');
+    
+    if (!process.env.RAPIDAPI_KEY) {
+        console.log('❌ RAPIDAPI_KEY не установлен в переменных окружения');
+        return false;
     }
+    
+    try {
+        // Простой тест API
+        const response = await axios.get('https://twitter-x.p.rapidapi.com/user/by/username/twitter', {
+            headers: {
+                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+                'X-RapidAPI-Host': 'twitter-x.p.rapidapi.com'
+            },
+            timeout: 5000
+        });
+        
+        console.log('✅ RapidAPI подключение работает');
+        return true;
+        
+    } catch (error) {
+        console.log('❌ Проблема с RapidAPI:', error.response?.status, error.message);
+        
+        if (error.response?.status === 403) {
+            console.log('🔑 Возможные причины 403:');
+            console.log('   - Неверный API ключ');
+            console.log('   - Закончились запросы на бесплатном плане');
+            console.log('   - API требует подписки');
+        }
+        
+        return false;
+    }
+}
+
+// Добавьте эту проверку при запуске сервера
+app.get('/api/rapidapi-status', async (req, res) => {
+    const status = await checkRapidAPIStatus();
+    res.json({ 
+        working: status,
+        key_configured: !!process.env.RAPIDAPI_KEY,
+        key_preview: process.env.RAPIDAPI_KEY ? 
+            process.env.RAPIDAPI_KEY.substring(0, 8) + '...' : 
+            null
+    });
 });
 
 app.post('/api/users', async (req, res) => {
