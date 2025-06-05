@@ -8,7 +8,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // --- ПОДКЛЮЧЕНИЕ К MONGODB ---
-mongoose.connect(process.env.MONGODB_URI || 'ВАШ_ПУТЬ_К_MONGODB')
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Подключено к MongoDB!'))
   .catch(err => console.error('Ошибка подключения к MongoDB:', err));
 
@@ -54,7 +54,7 @@ async function checkIfUserFollowsMantle(userTwitterUsername) {
 
     console.log(`🔍 Проверяем, подписан ли @${cleanUserTwitterUsername} на @${mantleOfficialScreenName}`);
 
-    if (!process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY === 'ВАШ_ПУТЬ_К_MONGODB') {
+    if (!process.env.RAPIDAPI_KEY) {
         console.warn('⚠️ RapidAPI ключ не настроен. Проверка подписки пропущена.');
         return false;
     }
@@ -231,7 +231,7 @@ function checkTwitterUsernameWhitelist(username) {
 
 // --- ФУНКЦИЯ ПРОВЕРКИ ЧЕРЕЗ МНОЖЕСТВЕННЫЕ API ---
 async function checkTwitterMultipleAPIs(username) {
-    if (!process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY === 'ВАШ_ПУТЬ_К_MONGODB') {
+    if (!process.env.RAPIDAPI_KEY) {
         console.log('⚠️ RapidAPI ключ не настроен');
         return false;
     }
@@ -319,7 +319,7 @@ app.post('/api/users', async (req, res) => {
             });
         }
 
-        // ИСПРАВЛЕНО: Правильная проверка уникальности по IP
+        // Проверка уникальности по IP
         const existingUserByIP = await User.findOne({ 
             ip_address: ipAddress,
             ip_address: { $exists: true, $ne: null }
