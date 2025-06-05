@@ -101,28 +101,29 @@ async function checkTwitterUsername(username) {
 
     const cleanUsername = username.replace(/^@/, '');
     console.log(`🔍 Проверяем Twitter аккаунт: @${cleanUsername}`);
+    
+    // Проверка через множественные API
+    const apiCheckResult = await checkTwitterMultipleAPIs(cleanUsername);
+    if (apiCheckResult) {
+        return true;
+    }
 
-    // Проверка через Twitter API
+    // Проверка через Nitter
     try {
-        const response = await axios.get(`https://api.twitter.com/2/users/by/username/${cleanUsername}`, {
-            headers: {
-                'Authorization': `Bearer ${process.env.TWITTER_BEARER_TOKEN}`
+        const publicResponse = await axios.get(`https://nitter.net/${cleanUsername}`, {
+            timeout: 5000,
+            validateStatus: function (status) {
+                return status < 500;
             }
         });
-
-        if (response.status === 200) {
-            console.log(`✅ Twitter аккаунт @${cleanUsername} найден через API`);
+        
+        if (publicResponse.status === 200) {
+            console.log(`✅ Twitter аккаунт @${cleanUsername} найден через Nitter`);
             return true;
         }
     } catch (error) {
-        console.error(`Ошибка при проверке Twitter аккаунта: ${error.response?.status} - ${error.message}`);
-        return false; // Если ошибка, юзернейм не существует
+        console.log(`⚠️ Nitter недоступен для @${cleanUsername}: ${error.message}`);
     }
-
-    // Если API не сработал, можно добавить дополнительные проверки, если нужно
-    return false;
-}
-
     
     // Проверка через прямой URL Twitter
     try {
@@ -372,77 +373,21 @@ app.post('/api/users', async (req, res) => {
     }
 });
 
-app.post('/api/users', async (req, res) => {
-    const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
-    const ipAddress = req.realIP;
-
-    console.log('Получены данные:', { nickname, country, twitter_username, ip: ipAddress });
-
-    // Валидация обязательных полей
-    if (!nickname || !country || lat === undefined || lng === undefined) {
-        console.warn('Отсутствуют обязательные поля:', { nickname, country, lat, lng });
-        return res.status(400).json({ message: 'Отсутствуют обязательные поля (никнейм, страна или координаты).' });
+app.post('/api/check-twitter', async (req, res) => {
+    const { username } = req.body;
+    
+    if (!username) {
+        return res.status(400).json({ message: 'Twitter username не указан.' });
     }
-
-    // Проверка Twitter username
-    if (!twitter_username || twitter_username.trim() === '') {
-        return res.status(400).json({ message: 'Twitter username обязателен для регистрации.' });
-    }
-
+    
     try {
-        // Проверка существования Twitter аккаунта
-        console.log(`Проверяем существование Twitter аккаунта: @${twitter_username}`);
-        const twitterExists = await checkTwitterUsername(twitter_username);
-
-        if (!twitterExists) {
-            return res.status(400).json({
-                message: 'Указанный Twitter аккаунт не существует. Регистрация доступна только для пользователей Twitter.'
-            });
-        }
-
-        // Проверка уникальности по IP
-        const existingUser ByIP = await User.findOne({ ip_address: ipAddress });
-        if (existingUser ByIP) {
-            console.warn(`Попытка регистрации с уже использованного IP: ${ipAddress}`);
-            return res.status(403).json({
-                message: 'С этого IP-адреса уже зарегистрирован аккаунт. Разрешен только один аккаунт на IP-адрес.'
-            });
-        }
-
-        // Создание нового пользователя
-        const newUser  = new User({
-            nickname,
-            country,
-            lat,
-            lng,
-            avatar,
-            twitter_username: twitter_username.replace(/^@/, ''),
-            twitter_profile_url: twitter_profile_url || `https://twitter.com/${twitter_username.replace(/^@/, '')}`,
-            ip_address: ipAddress
-        });
-
-        await newUser .save();
-        console.log(`Пользователь ${nickname} (@${twitter_username}) из ${country} успешно зарегистрирован!`);
-
-        res.status(201).json({
-            message: 'Пользователь успешно зарегистрирован!',
-            user: newUser 
-        });
-
+        const exists = await checkTwitterUsername(username);
+        res.json({ exists, username: username.replace(/^@/, '') });
     } catch (error) {
-        if (error.code === 11000) {
-            console.warn('Попытка дубликата пользователя:', error.message);
-            return res.status(409).json({ message: 'Пользователь с таким никнеймом или именем пользователя Twitter уже существует.', details: error.message });
-        }
-
-        console.error('Ошибка при сохранении в БД:', error.message);
-        return res.status(500).json({
-            message: 'Внутренняя ошибка сервера при регистрации пользователя.',
-            details: error.message
-        });
+        console.error('Ошибка при проверке Twitter:', error);
+        res.status(500).json({ message: 'Ошибка при проверке Twitter аккаунта.' });
     }
 });
-
 
 // --- ЗАПУСК СЕРВЕРА ---
 app.listen(port, () => {
