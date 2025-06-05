@@ -61,7 +61,7 @@ async function checkTwitterUsername(username) {
     console.log(`🔍 Проверяем Twitter аккаунт: @${cleanUsername}`);
     
     // ВАРИАНТ 1: RapidAPI Twitter API
-    if (process.env.RAPIDAPI_KEY && process.env.RAPIDAPI_KEY !== '7515806') {
+    if (process.env.RAPIDAPI_KEY && process.env.RAPIDAPI_KEY !== '4c37bfb142msha60bba1788f9aebp1c756ejsn6d6b4f478307') {
         try {
             const response = await axios.get(`https://twitter-api45.p.rapidapi.com/user.php`, {
                 params: { username: cleanUsername },
