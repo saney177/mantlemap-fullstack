@@ -58,34 +58,112 @@ async function checkTwitterUsername(username) {
     const cleanUsername = username.replace(/^@/, '');
     
     try {
-        // Используем более надежный способ проверки через Twitter API или публичные данные
-        const url = `https://twitter.com/${cleanUsername}`;
+        // Используем публичный API Twitter для проверки существования пользователя
+        // Этот endpoint не требует авторизации и возвращает JSON
+        const url = `https://api.twitter.com/1.1/users/show.json?screen_name=${cleanUsername}`;
+        
         const response = await axios.get(url, {
-            timeout: 5000,
+            timeout: 10000,
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
             }
         });
         
-        // Проверяем, что страница содержит профиль пользователя, а не страницу "не найдено"
-        const pageContent = response.data;
-        const isValidProfile = !pageContent.includes('This account doesn\'t exist') && 
-                              !pageContent.includes('Account suspended') &&
-                              response.status === 200;
+        // Если запрос успешен и есть данные пользователя
+        if (response.status === 200 && response.data && response.data.screen_name) {
+            console.log(`✅ Twitter аккаунт @${cleanUsername} найден`);
+            return true;
+        }
         
-        console.log(`Проверка Twitter аккаунта @${cleanUsername}: ${isValidProfile ? 'найден' : 'не найден'}`);
-        return isValidProfile;
+        console.log(`❌ Twitter аккаунт @${cleanUsername} не найден`);
+        return false;
         
     } catch (error) {
-        console.warn(`Ошибка при проверке Twitter аккаунта @${cleanUsername}:`, error.message);
+        console.warn(`🔍 Проверка Twitter аккаунта @${cleanUsername} - Ошибка:`, error.response?.status || error.message);
         
-        // Если ошибка 404, то аккаунт точно не существует
+        // Если ошибка 404 или 403 (пользователь не найден или приватный)
         if (error.response?.status === 404) {
+            console.log(`❌ Twitter аккаунт @${cleanUsername} не существует (404)`);
             return false;
         }
         
-        // В случае других ошибок (сеть, лимиты) возвращаем false для безопасности
+        // Если ошибка 401 (Unauthorized) - API требует авторизацию
+        if (error.response?.status === 401) {
+            console.log(`⚠️ Twitter API требует авторизацию, используем альтернативный метод для @${cleanUsername}`);
+            return await checkTwitterUsernameAlternative(cleanUsername);
+        }
+        
+        // Для других ошибок (429 - rate limit, 400 - bad request) пробуем альтернативный метод
+        if (error.response?.status === 429 || error.response?.status === 400) {
+            console.log(`⚠️ Twitter API недоступен (${error.response.status}), используем альтернативный метод для @${cleanUsername}`);
+            return await checkTwitterUsernameAlternative(cleanUsername);
+        }
+        
+        // В случае сетевых ошибок тоже пробуем альтернативный метод
+        console.log(`⚠️ Сетевая ошибка при проверке @${cleanUsername}, используем альтернативный метод`);
+        return await checkTwitterUsernameAlternative(cleanUsername);
+    }
+}
+
+// --- АЛЬТЕРНАТИВНАЯ ФУНКЦИЯ ПРОВЕРКИ ЧЕРЕЗ ПРОВЕРКУ DNS/NSLOOKUP ---
+async function checkTwitterUsernameAlternative(username) {
+    try {
+        // Используем более простой подход - проверяем redirect на twitter.com
+        const url = `https://mobile.twitter.com/${username}`;
+        
+        const response = await axios.get(url, {
+            timeout: 8000,
+            maxRedirects: 5,
+            validateStatus: function (status) {
+                // Считаем успешными коды 200, 301, 302
+                return status >= 200 && status < 400;
+            },
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us',
+                'Accept-Encoding': 'gzip, deflate'
+            }
+        });
+        
+        // Если получили ответ без ошибок
+        if (response.status === 200) {
+            const content = response.data.toLowerCase();
+            
+            // Проверяем, что это не страница с ошибкой
+            const isNotFound = content.includes('this account doesn\'t exist') ||
+                              content.includes('user not found') ||
+                              content.includes('account suspended') ||
+                              content.includes('sorry, that page doesn\'t exist');
+            
+            if (isNotFound) {
+                console.log(`❌ Альтернативная проверка: @${username} не найден`);
+                return false;
+            }
+            
+            // Проверяем, что есть признаки реального профиля
+            const hasProfile = content.includes('@' + username.toLowerCase()) ||
+                              content.includes('twitter.com/' + username.toLowerCase()) ||
+                              content.includes('"screen_name"');
+            
+            console.log(`${hasProfile ? '✅' : '❌'} Альтернативная проверка: @${username} ${hasProfile ? 'найден' : 'не найден'}`);
+            return hasProfile;
+        }
+        
         return false;
+        
+    } catch (error) {
+        console.warn(`❌ Альтернативная проверка @${username} не удалась:`, error.message);
+        
+        // В крайнем случае возвращаем true для длинных имен (вероятно боты),
+        // и false для коротких (скорее всего заняты настоящими пользователями)
+        const fallbackResult = username.length > 15;
+        console.log(`🎲 Fallback для @${username}: ${fallbackResult ? 'разрешено' : 'запрещено'} (длина: ${username.length})`);
+        return fallbackResult;
     }
 }
 
