@@ -59,93 +59,106 @@ async function checkTwitterUsername(username) {
     
     console.log(`🔍 Проверяем Twitter аккаунт: @${cleanUsername}`);
     
-    // Вариант 1: Используем внешний API для проверки социальных сетей
+    // ВАРИАНТ 1: Используем RapidAPI Twitter API (бесплатный план)
     try {
-        // Этот API бесплатный и не требует ключей для базовой проверки
-        const response = await axios.get(`https://api.social-searcher.com/v2/search`, {
-            params: {
-                q: `@${cleanUsername}`,
-                network: 'twitter',
-                limit: 1
-            },
-            timeout: 10000,
+        const response = await axios.get(`https://twitter-api45.p.rapidapi.com/user.php`, {
+            params: { username: cleanUsername },
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
+                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY || 'YOUR_RAPIDAPI_KEY_HERE',
+                'X-RapidAPI-Host': 'twitter-api45.p.rapidapi.com'
+            },
+            timeout: 10000
         });
         
-        if (response.data && response.data.posts && response.data.posts.length > 0) {
-            console.log(`✅ Twitter аккаунт @${cleanUsername} найден через Social Searcher API`);
+        if (response.data && response.data.username) {
+            console.log(`✅ Twitter аккаунт @${cleanUsername} найден через RapidAPI`);
             return true;
         }
     } catch (error) {
-        console.log(`⚠️ Social Searcher API недоступен для @${cleanUsername}`);
+        console.log(`⚠️ RapidAPI недоступен для @${cleanUsername}: ${error.response?.status || error.message}`);
     }
     
-    // Вариант 2: Проверка через простую эвристику имен
-    return await checkTwitterUsernameByPattern(cleanUsername);
+    // ВАРИАНТ 2: Временно используем список известных Twitter аккаунтов
+    return await checkTwitterUsernameWhitelist(cleanUsername);
 }
 
-// --- ПРОВЕРКА ЧЕРЕЗ ПАТТЕРНЫ И ЭВРИСТИКУ ---
-async function checkTwitterUsernameByPattern(username) {
-    // Список заведомо несуществующих паттернов
-    const invalidPatterns = [
-        /^[a-z]{20,}$/, // только строчные буквы длиной 20+ символов
-        /^[0-9]{15,}$/, // только цифры длиной 15+ символов
-        /^(.)\1{10,}$/, // повторение одного символа 10+ раз
-        /^[qwerty]{15,}$/, // клавиатурный спам
-        /^asdf/, // клавиатурный спам
-        /^[xyz]{10,}$/, // повторение xyz
-        /dkjfsbhbhdjvnjedknfkn/, // ваш тестовый случай
-        /^test[0-9]{10,}$/, // test + много цифр
-        /^user[0-9]{10,}$/, // user + много цифр
+// --- ПРОВЕРКА ЧЕРЕЗ WHITELIST И СТРОГИЕ ПРАВИЛА ---
+async function checkTwitterUsernameWhitelist(username) {
+    // Сначала проверяем на явно поддельные паттерны (СТРОГАЯ ПРОВЕРКА)
+    const spamPatterns = [
+        /^[a-z]{10,}$/, // только строчные буквы 10+ символов без цифр/подчеркиваний
+        /^[qwerty]{8,}/, // клавиатурный набор
+        /^[asdfgh]{8,}/, // клавиатурный набор
+        /^(.)\1{5,}$/, // повторение символа 5+ раз
+        /^[xyz]{8,}$/, // много xyz
+        /^test[0-9]*$/, // test + цифры
+        /^user[0-9]*$/, // user + цифры
+        /^[0-9]{8,}$/, // только цифры 8+ символов
+        /hjk|jkl|dfg|fgh|cvb|bnm/, // случайные клавиатурные комбинации
+        /^[bcdfghjklmnpqrstvwxyz]{12,}$/, // много согласных подряд
     ];
     
-    // Список вероятно существующих паттернов
-    const validPatterns = [
-        /^[a-z0-9_]{1,15}$/, // нормальный Twitter username (до 15 символов)
-        /^[a-z]+_[a-z]+$/, // слово_слово
-        /^[a-z]+[0-9]{1,4}$/, // слово + 1-4 цифры
-        /eth$/, // заканчивается на eth (крипто)
-        /btc$/, // заканчивается на btc (крипто)
-        /crypto/, // содержит crypto
-        /nft/, // содержит nft
-        /^real/, // начинается с real
-    ];
-    
-    // Проверяем на явно невалидные паттерны
-    for (const pattern of invalidPatterns) {
+    for (const pattern of spamPatterns) {
         if (pattern.test(username.toLowerCase())) {
-            console.log(`❌ @${username} отклонен по паттерну: ${pattern}`);
+            console.log(`❌ @${username} отклонен как спам по паттерну: ${pattern}`);
             return false;
         }
     }
     
-    // Проверяем на вероятно валидные паттерны
-    for (const pattern of validPatterns) {
-        if (pattern.test(username.toLowerCase())) {
-            console.log(`✅ @${username} принят по паттерну: ${pattern}`);
-            return true;
+    // Проверяем whitelist популярных/известных аккаунтов
+    const knownAccounts = [
+        // Популярные крипто аккаунты
+        'elonmusk', 'bitcoin', 'ethereum', 'binance', 'coinbase', 'vitalikbuterin',
+        'satoshin', 'cz_binance', 'justinsuntron', 'whale_alert', 'defi_pulse',
+        
+        // Популярные имена с крипто суффиксами
+        /^[a-z]{2,8}_?(eth|btc|crypto|nft|defi|web3|doge|sol|ada|dot|bnb)$/,
+        /^(crypto|bitcoin|eth|nft|defi|web3)_?[a-z0-9]{2,8}$/,
+        
+        // Реальные паттерны имен
+        /^[a-z]{3,8}[0-9]{1,4}$/, // имя + 1-4 цифры (john123)
+        /^[a-z]{2,8}_[a-z]{2,8}$/, // имя_фамилия
+        /^real[a-z]{3,10}$/, // real + имя
+        /^[a-z]{3,8}(official|real|the)$/, // имя + official/real/the
+        
+        // Популярные суффиксы/префиксы
+        /^(mr|ms|dr|prof)[a-z]{3,10}$/, // mr/ms/dr + имя
+        /^[a-z]{3,8}(jr|sr|ii|iii)$/, // имя + jr/sr/ii/iii
+    ];
+    
+    // Проверяем whitelist
+    for (const account of knownAccounts) {
+        if (typeof account === 'string') {
+            if (username.toLowerCase() === account.toLowerCase()) {
+                console.log(`✅ @${username} найден в whitelist известных аккаунтов`);
+                return true;
+            }
+        } else if (account instanceof RegExp) {
+            if (account.test(username.toLowerCase())) {
+                console.log(`✅ @${username} принят по паттерну whitelist: ${account}`);
+                return true;
+            }
         }
     }
     
-    // Дополнительные проверки
-    const usernameLength = username.length;
-    const hasValidLength = usernameLength >= 1 && usernameLength <= 15; // Twitter limit
-    const hasValidChars = /^[a-zA-Z0-9_]+$/.test(username); // Только разрешенные символы
-    const notAllNumbers = !/^[0-9]+$/.test(username); // Не только цифры
-    const notAllSameChar = !/^(.)\1+$/.test(username); // Не все одинаковые символы
+    // Дополнительная проверка: если имя содержит распространенные слова
+    const commonWords = ['john', 'mike', 'alex', 'david', 'chris', 'anna', 'maria', 'lisa', 
+                        'crypto', 'bitcoin', 'eth', 'trader', 'investor', 'dev', 'tech'];
     
-    const isLikelyValid = hasValidLength && hasValidChars && notAllNumbers && notAllSameChar;
+    const hasCommonWord = commonWords.some(word => 
+        username.toLowerCase().includes(word) && 
+        username.length <= 15 && 
+        !spamPatterns.some(pattern => pattern.test(username.toLowerCase()))
+    );
     
-    if (!isLikelyValid) {
-        console.log(`❌ @${username} не прошел базовую валидацию (длина: ${usernameLength}, символы: ${hasValidChars}, не только цифры: ${notAllNumbers})`);
-        return false;
+    if (hasCommonWord) {
+        console.log(`✅ @${username} принят - содержит распространенное слово`);
+        return true;
     }
     
-    // Если прошел все проверки, считаем валидным
-    console.log(`✅ @${username} принят по умолчанию (прошел базовую валидацию)`);
-    return true;
+    // Если ничего не подошло - отклоняем
+    console.log(`❌ @${username} отклонен - не прошел whitelist и проверки паттернов`);
+    return false;
 }
 
 // --- МАРШРУТЫ API ---
