@@ -1,8 +1,8 @@
-require('dotenv').config(); // Загружает переменные окружения из .env файла
+require('dotenv').config();
 const express = require('express');
-const axios = require('axios'); // Для проверки юзернейма в Twitter
-const cors = require('cors'); // Для управления CORS
-const mongoose = require('mongoose'); // Для работы с MongoDB
+const axios = require('axios');
+const cors = require('cors');
+const mongoose = require('mongoose');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -21,17 +21,16 @@ const userSchema = new mongoose.Schema({
     avatar: { type: String },
     twitter_username: { type: String, unique: true, sparse: true },
     twitter_profile_url: { type: String },
-    ip_address: { type: String } // Для хранения IP-адреса пользователя
+    ip_address: { type: String }
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
 
 // --- MIDDLEWARE ---
-// Middleware для обработки JSON-запросов
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Middleware для получения реального IP-адреса (учитывает прокси)
+// Middleware для получения реального IP-адреса
 app.use((req, res, next) => {
     req.realIP = req.headers['x-forwarded-for']?.split(',')[0] || 
                  req.headers['x-real-ip'] || 
@@ -43,62 +42,81 @@ app.use((req, res, next) => {
 
 // Настройка CORS
 app.use(cors({
-    origin: ['https://mantlemap.xyz', 'http://localhost:8080'], // Разрешенные домены
+    origin: ['https://mantlemap.xyz', 'http://localhost:8080'],
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));
 
-// --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЮЗЕРНЕЙМА В TWITTER ---
-// --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЮЗЕРНЕЙМА В TWITTER ---
+// --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ПОДПИСКИ НА MANTLE ---
+async function checkIfUserFollowsMantle(userTwitterUsername) {
+    const cleanUserTwitterUsername = userTwitterUsername.replace(/^@/, '');
+    const mantleOfficialScreenName = 'Mantle_Official';
+
+    console.log(`🔍 Проверяем, подписан ли @${cleanUserTwitterUsername} на @${mantleOfficialScreenName}`);
+
+    if (!process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY === 'ВАШ_ПУТЬ_К_MONGODB') {
+        console.warn('⚠️ RapidAPI ключ не настроен. Проверка подписки пропущена.');
+        return false;
+    }
+
+    try {
+        const url = `https://twitter-api45.p.rapidapi.com/checkfollow.php?user=${cleanUserTwitterUsername}&follows=${mantleOfficialScreenName}`;
+        
+        const options = {
+            method: 'GET',
+            headers: {
+                'x-rapidapi-key': process.env.RAPIDAPI_KEY,
+                'x-rapidapi-host': 'twitter-api45.p.rapidapi.com'
+            },
+            timeout: 8000
+        };
+
+        const response = await axios(url, options);
+        const result = response.data;
+
+        if (result && typeof result.is_follow === 'boolean') {
+            if (result.is_follow === true) {
+                console.log(`✅ @${cleanUserTwitterUsername} подписан на @${mantleOfficialScreenName}`);
+                return true;
+            } else {
+                console.log(`❌ @${cleanUserTwitterUsername} НЕ подписан на @${mantleOfficialScreenName}`);
+                return false;
+            }
+        } else {
+            console.warn(`⚠️ Неожиданный формат ответа от RapidAPI:`, result);
+            return false;
+        }
+
+    } catch (error) {
+        console.error(`Ошибка при проверке подписки:`, error.response?.status, error.response?.data?.message || error.message);
+        return false;
+    }
+}
+
+// --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ СУЩЕСТВОВАНИЯ TWITTER АККАУНТА ---
 async function checkTwitterUsername(username) {
     if (!username || username.trim() === '') {
         return false;
     }
 
-    // Убираем @ если есть в начале
     const cleanUsername = username.replace(/^@/, '');
-    
     console.log(`🔍 Проверяем Twitter аккаунт: @${cleanUsername}`);
     
-    // ВАРИАНТ 1: RapidAPI Twitter API
-    if (process.env.RAPIDAPI_KEY && process.env.RAPIDAPI_KEY !== '4c37bfb142msha60bba1788f9aebp1c756ejsn6d6b4f478307') {
-        try {
-            const response = await axios.get(`https://twitter-api45.p.rapidapi.com/user.php`, {
-                params: { username: cleanUsername },
-                headers: {
-                    'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-                    'X-RapidAPI-Host': 'twitter-api45.p.rapidapi.com'
-                },
-                timeout: 10000
-            });
-            
-            if (response.data && response.data.username) {
-                console.log(`✅ Twitter аккаунт @${cleanUsername} найден через RapidAPI`);
-                return true;
-            }
-        } catch (error) {
-            console.log(`⚠️ RapidAPI ошибка для @${cleanUsername}:`, error.response?.status, error.response?.data?.message || error.message);
-            
-            // Если квота исчерпана или другая ошибка API, используем fallback
-            if (error.response?.status === 403) {
-                console.log('⚠️ Проблема с RapidAPI ключом - используем fallback проверку');
-            }
-        }
-    } else {
-        console.log('⚠️ RapidAPI ключ не настроен - используем fallback проверку');
+    // Проверка через множественные API
+    const apiCheckResult = await checkTwitterMultipleAPIs(cleanUsername);
+    if (apiCheckResult) {
+        return true;
     }
-    
-    // ВАРИАНТ 2: Альтернативная проверка через другой API
+
+    // Проверка через Nitter
     try {
-        // Используем другой бесплатный API или метод
         const publicResponse = await axios.get(`https://nitter.net/${cleanUsername}`, {
             timeout: 5000,
             validateStatus: function (status) {
-                return status < 500; // Принимаем статусы < 500
+                return status < 500;
             }
         });
         
-        // Если страница существует (не 404), значит аккаунт существует
         if (publicResponse.status === 200) {
             console.log(`✅ Twitter аккаунт @${cleanUsername} найден через Nitter`);
             return true;
@@ -107,7 +125,7 @@ async function checkTwitterUsername(username) {
         console.log(`⚠️ Nitter недоступен для @${cleanUsername}: ${error.message}`);
     }
     
-    // ВАРИАНТ 3: Проверка через публичный Twitter URL
+    // Проверка через прямой URL Twitter
     try {
         const twitterResponse = await axios.get(`https://twitter.com/${cleanUsername}`, {
             timeout: 5000,
@@ -119,7 +137,6 @@ async function checkTwitterUsername(username) {
             }
         });
         
-        // Проверяем, что страница не показывает "This account doesn't exist"
         if (twitterResponse.status === 200 && 
             !twitterResponse.data.includes('This account doesn\'t exist') &&
             !twitterResponse.data.includes('Account suspended')) {
@@ -130,70 +147,59 @@ async function checkTwitterUsername(username) {
         console.log(`⚠️ Прямая проверка Twitter недоступна для @${cleanUsername}: ${error.message}`);
     }
     
-    // ВАРИАНТ 4: Улучшенная whitelist проверка как последний резерв
-    return await checkTwitterUsernameWhitelist(cleanUsername);
+    // Последняя проверка через whitelist
+    return checkTwitterUsernameWhitelist(cleanUsername);
 }
 
-// --- УЛУЧШЕННАЯ ПРОВЕРКА ЧЕРЕЗ WHITELIST ---
-async function checkTwitterUsernameWhitelist(username) {
+// --- ФУНКЦИЯ WHITELIST ПРОВЕРКИ ---
+function checkTwitterUsernameWhitelist(username) {
     console.log(`🔍 Запуск whitelist проверки для @${username}`);
     
-    // 1. Явно поддельные паттерны (более точная проверка)
+    // Очевидно поддельные паттерны
     const obviousSpamPatterns = [
-        /^[a-z]{15,}$/, // только строчные буквы 15+ символов (слишком длинно)
-        /^(.)\1{6,}$/, // повторение одного символа 6+ раз (aaaaaaa)
-        /^[qwertyuiop]{8,}$/i, // клавиатурный набор
-        /^[asdfghjkl]{8,}$/i, // клавиатурный набор
-        /^[zxcvbnm]{8,}$/i, // клавиатурный набор
-        /^test[0-9]{3,}$/i, // test123456
-        /^user[0-9]{3,}$/i, // user123456
-        /^[0-9]{10,}$/, // только цифры 10+ символов
-        /^[bcdfghjklmnpqrstvwxyz]{15,}$/i, // много согласных без гласных
-        /hjklfdsapoiuytrewq|mnbvcxzasdfgh/, // случайный набор букв
+        /^[a-z]{15,}$/,
+        /^(.)\1{6,}$/,
+        /^[qwertyuiop]{8,}$/i,
+        /^[asdfghjkl]{8,}$/i,
+        /^[zxcvbnm]{8,}$/i,
+        /^test[0-9]{3,}$/i,
+        /^user[0-9]{3,}$/i,
+        /^[0-9]{10,}$/,
+        /^[bcdfghjklmnpqrstvwxyz]{15,}$/i,
+        /hjklfdsapoiuytrewq|mnbvcxzasdfgh/,
     ];
     
-    // Проверяем на очевидный спам
     for (const pattern of obviousSpamPatterns) {
         if (pattern.test(username)) {
-            console.log(`❌ @${username} отклонен как очевидный спам: ${pattern}`);
+            console.log(`❌ @${username} отклонен как спам: ${pattern}`);
             return false;
         }
     }
     
-    // 2. Позитивные паттерны (что ПРИНИМАЕМ)
+    // Позитивные паттерны
     const validPatterns = [
-        // Crypto-related имена (очень популярны в Twitter)
-        /^0x[a-zA-Z][a-zA-Z0-9]{3,12}$/i, // 0x + буквы/цифры (как 0xAndrewMoh)
+        /^0x[a-zA-Z][a-zA-Z0-9]{3,12}$/i,
         /^[a-zA-Z]{2,8}(eth|btc|crypto|nft|defi|web3|sol|ada|dot|bnb)$/i,
         /^(crypto|bitcoin|eth|nft|defi|web3)[a-zA-Z0-9_]{2,10}$/i,
-        
-        // Обычные имена с цифрами
-        /^[a-zA-Z]{3,12}[0-9]{1,4}$/i, // имя + 1-4 цифры
-        /^[a-zA-Z]{2,8}_[a-zA-Z]{2,8}$/i, // имя_фамилия
-        /^[a-zA-Z]{3,12}_?[0-9]{1,3}$/i, // имя_123
-        
-        // Имена с префиксами/суффиксами
+        /^[a-zA-Z]{3,12}[0-9]{1,4}$/i,
+        /^[a-zA-Z]{2,8}_[a-zA-Z]{2,8}$/i,
+        /^[a-zA-Z]{3,12}_?[0-9]{1,3}$/i,
         /^(real|the|mr|ms|dr)[a-zA-Z]{3,12}$/i,
         /^[a-zA-Z]{3,12}(official|real|jr|sr)$/i,
-        
-        // Смешанные паттерны
-        /^[a-zA-Z][a-zA-Z0-9_]{4,14}[a-zA-Z0-9]$/i, // начинается и заканчивается буквой/цифрой
+        /^[a-zA-Z][a-zA-Z0-9_]{4,14}[a-zA-Z0-9]$/i,
     ];
     
-    // Проверяем позитивные паттерны
     for (const pattern of validPatterns) {
         if (pattern.test(username)) {
-            console.log(`✅ @${username} принят по валидному паттерну: ${pattern}`);
+            console.log(`✅ @${username} принят по валидному паттерну`);
             return true;
         }
     }
     
-    // 3. Проверка на наличие осмысленных частей
+    // Проверка на осмысленные части
     const meaningfulParts = [
-        // Популярные имена
         'alex', 'andrew', 'john', 'mike', 'david', 'chris', 'anna', 'maria', 'lisa', 'sarah',
         'crypto', 'bitcoin', 'eth', 'trader', 'investor', 'dev', 'tech', 'hodl', 'moon',
-        // Crypto термины
         'defi', 'nft', 'web3', 'doge', 'shib', 'ada', 'dot', 'sol', 'bnb', 'matic'
     ];
     
@@ -207,12 +213,12 @@ async function checkTwitterUsernameWhitelist(username) {
         return true;
     }
     
-    // 4. Финальная проверка: если имя не слишком странное
+    // Финальная проверка
     const isSuspicious = 
-        username.length > 15 || // слишком длинное
-        username.length < 3 || // слишком короткое
-        /^[0-9]+$/.test(username) || // только цифры
-        !/[a-zA-Z]/.test(username); // нет букв вообще
+        username.length > 15 || 
+        username.length < 3 || 
+        /^[0-9]+$/.test(username) || 
+        !/[a-zA-Z]/.test(username);
         
     if (!isSuspicious) {
         console.log(`✅ @${username} принят - не выглядит подозрительно`);
@@ -223,8 +229,13 @@ async function checkTwitterUsernameWhitelist(username) {
     return false;
 }
 
-// --- ДОПОЛНИТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЧЕРЕЗ МНОЖЕСТВЕННЫЕ API ---
+// --- ФУНКЦИЯ ПРОВЕРКИ ЧЕРЕЗ МНОЖЕСТВЕННЫЕ API ---
 async function checkTwitterMultipleAPIs(username) {
+    if (!process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY === 'ВАШ_ПУТЬ_К_MONGODB') {
+        console.log('⚠️ RapidAPI ключ не настроен');
+        return false;
+    }
+
     const apis = [
         {
             name: 'RapidAPI Twitter API v2',
@@ -263,16 +274,12 @@ async function checkTwitterMultipleAPIs(username) {
     
     return false;
 }
-   
 
 // --- МАРШРУТЫ API ---
-
-// Простой маршрут для проверки работы сервера
 app.get('/', (req, res) => {
     res.send('API Server is running!');
 });
 
-// Маршрут для получения всех пользователей из MongoDB
 app.get('/api/users', async (req, res) => {
     try {
         const users = await User.find({});
@@ -284,26 +291,25 @@ app.get('/api/users', async (req, res) => {
     }
 });
 
-// Маршрут для регистрации пользователя
 app.post('/api/users', async (req, res) => {
     const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
-    const ipAddress = req.realIP; // Используем реальный IP-адрес
+    const ipAddress = req.realIP;
 
     console.log('Получены данные:', { nickname, country, twitter_username, ip: ipAddress });
 
-    // 1. Валидация на стороне сервера: проверка обязательных полей
+    // Валидация обязательных полей
     if (!nickname || !country || lat === undefined || lng === undefined) {
         console.warn('Отсутствуют обязательные поля:', { nickname, country, lat, lng });
         return res.status(400).json({ message: 'Отсутствуют обязательные поля (никнейм, страна или координаты).' });
     }
 
-    // 2. Проверка обязательного Twitter username
+    // Проверка Twitter username
     if (!twitter_username || twitter_username.trim() === '') {
         return res.status(400).json({ message: 'Twitter username обязателен для регистрации.' });
     }
 
     try {
-        // 3. Проверка существования Twitter аккаунта
+        // Проверка существования Twitter аккаунта
         console.log(`Проверяем существование Twitter аккаунта: @${twitter_username}`);
         const twitterExists = await checkTwitterUsername(twitter_username);
         
@@ -313,10 +319,10 @@ app.post('/api/users', async (req, res) => {
             });
         }
 
-        // 4. Проверка на уникальность по IP-адресу (исключаем старых пользователей с ip_address: null)
+        // ИСПРАВЛЕНО: Правильная проверка уникальности по IP
         const existingUserByIP = await User.findOne({ 
             ip_address: ipAddress,
-            ip_address: { $ne: null } // Исключаем пользователей с null IP
+            ip_address: { $exists: true, $ne: null }
         });
         
         if (existingUserByIP) {
@@ -326,16 +332,16 @@ app.post('/api/users', async (req, res) => {
             });
         }
 
-        // 5. Создание нового пользователя
+        // Создание нового пользователя
         const newUser = new User({
             nickname,
             country,
             lat,
             lng,
             avatar,
-            twitter_username: twitter_username.replace(/^@/, ''), // Убираем @ если есть
+            twitter_username: twitter_username.replace(/^@/, ''),
             twitter_profile_url: twitter_profile_url || `https://twitter.com/${twitter_username.replace(/^@/, '')}`,
-            ip_address: ipAddress // Сохраняем IP-адрес
+            ip_address: ipAddress
         });
 
         await newUser.save();
@@ -350,7 +356,6 @@ app.post('/api/users', async (req, res) => {
         if (error.code === 11000) {
             console.warn('Попытка дубликата пользователя:', error.message);
             
-            // Определяем какое поле вызвало дубликат
             if (error.message.includes('nickname')) {
                 return res.status(409).json({ message: 'Пользователь с таким никнеймом уже существует.' });
             } else if (error.message.includes('twitter_username')) {
@@ -368,7 +373,6 @@ app.post('/api/users', async (req, res) => {
     }
 });
 
-// Дополнительный маршрут для проверки Twitter аккаунта (можно использовать на фронтенде)
 app.post('/api/check-twitter', async (req, res) => {
     const { username } = req.body;
     
