@@ -49,6 +49,7 @@ app.use(cors({
 }));
 
 // --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЮЗЕРНЕЙМА В TWITTER ---
+// --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЮЗЕРНЕЙМА В TWITTER ---
 async function checkTwitterUsername(username) {
     if (!username || username.trim() === '') {
         return false;
@@ -59,107 +60,210 @@ async function checkTwitterUsername(username) {
     
     console.log(`🔍 Проверяем Twitter аккаунт: @${cleanUsername}`);
     
-    // ВАРИАНТ 1: Используем RapidAPI Twitter API (бесплатный план)
+    // ВАРИАНТ 1: RapidAPI Twitter API
+    if (process.env.RAPIDAPI_KEY && process.env.RAPIDAPI_KEY !== '7515806') {
+        try {
+            const response = await axios.get(`https://twitter-api45.p.rapidapi.com/user.php`, {
+                params: { username: cleanUsername },
+                headers: {
+                    'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+                    'X-RapidAPI-Host': 'twitter-api45.p.rapidapi.com'
+                },
+                timeout: 10000
+            });
+            
+            if (response.data && response.data.username) {
+                console.log(`✅ Twitter аккаунт @${cleanUsername} найден через RapidAPI`);
+                return true;
+            }
+        } catch (error) {
+            console.log(`⚠️ RapidAPI ошибка для @${cleanUsername}:`, error.response?.status, error.response?.data?.message || error.message);
+            
+            // Если квота исчерпана или другая ошибка API, используем fallback
+            if (error.response?.status === 403) {
+                console.log('⚠️ Проблема с RapidAPI ключом - используем fallback проверку');
+            }
+        }
+    } else {
+        console.log('⚠️ RapidAPI ключ не настроен - используем fallback проверку');
+    }
+    
+    // ВАРИАНТ 2: Альтернативная проверка через другой API
     try {
-        const response = await axios.get(`https://twitter-api45.p.rapidapi.com/user.php`, {
-            params: { username: cleanUsername },
-            headers: {
-                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY || 'YOUR_RAPIDAPI_KEY_HERE',
-                'X-RapidAPI-Host': 'twitter-api45.p.rapidapi.com'
-            },
-            timeout: 10000
+        // Используем другой бесплатный API или метод
+        const publicResponse = await axios.get(`https://nitter.net/${cleanUsername}`, {
+            timeout: 5000,
+            validateStatus: function (status) {
+                return status < 500; // Принимаем статусы < 500
+            }
         });
         
-        if (response.data && response.data.username) {
-            console.log(`✅ Twitter аккаунт @${cleanUsername} найден через RapidAPI`);
+        // Если страница существует (не 404), значит аккаунт существует
+        if (publicResponse.status === 200) {
+            console.log(`✅ Twitter аккаунт @${cleanUsername} найден через Nitter`);
             return true;
         }
     } catch (error) {
-        console.log(`⚠️ RapidAPI недоступен для @${cleanUsername}: ${error.response?.status || error.message}`);
+        console.log(`⚠️ Nitter недоступен для @${cleanUsername}: ${error.message}`);
     }
     
-    // ВАРИАНТ 2: Временно используем список известных Twitter аккаунтов
+    // ВАРИАНТ 3: Проверка через публичный Twitter URL
+    try {
+        const twitterResponse = await axios.get(`https://twitter.com/${cleanUsername}`, {
+            timeout: 5000,
+            validateStatus: function (status) {
+                return status < 500;
+            },
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+        
+        // Проверяем, что страница не показывает "This account doesn't exist"
+        if (twitterResponse.status === 200 && 
+            !twitterResponse.data.includes('This account doesn\'t exist') &&
+            !twitterResponse.data.includes('Account suspended')) {
+            console.log(`✅ Twitter аккаунт @${cleanUsername} найден через прямую проверку`);
+            return true;
+        }
+    } catch (error) {
+        console.log(`⚠️ Прямая проверка Twitter недоступна для @${cleanUsername}: ${error.message}`);
+    }
+    
+    // ВАРИАНТ 4: Улучшенная whitelist проверка как последний резерв
     return await checkTwitterUsernameWhitelist(cleanUsername);
 }
 
-// --- ПРОВЕРКА ЧЕРЕЗ WHITELIST И СТРОГИЕ ПРАВИЛА ---
+// --- УЛУЧШЕННАЯ ПРОВЕРКА ЧЕРЕЗ WHITELIST ---
 async function checkTwitterUsernameWhitelist(username) {
-    // Сначала проверяем на явно поддельные паттерны (СТРОГАЯ ПРОВЕРКА)
-    const spamPatterns = [
-        /^[a-z]{10,}$/, // только строчные буквы 10+ символов без цифр/подчеркиваний
-        /^[qwerty]{8,}/, // клавиатурный набор
-        /^[asdfgh]{8,}/, // клавиатурный набор
-        /^(.)\1{5,}$/, // повторение символа 5+ раз
-        /^[xyz]{8,}$/, // много xyz
-        /^test[0-9]*$/, // test + цифры
-        /^user[0-9]*$/, // user + цифры
-        /^[0-9]{8,}$/, // только цифры 8+ символов
-        /hjk|jkl|dfg|fgh|cvb|bnm/, // случайные клавиатурные комбинации
-        /^[bcdfghjklmnpqrstvwxyz]{12,}$/, // много согласных подряд
+    console.log(`🔍 Запуск whitelist проверки для @${username}`);
+    
+    // 1. Явно поддельные паттерны (более точная проверка)
+    const obviousSpamPatterns = [
+        /^[a-z]{15,}$/, // только строчные буквы 15+ символов (слишком длинно)
+        /^(.)\1{6,}$/, // повторение одного символа 6+ раз (aaaaaaa)
+        /^[qwertyuiop]{8,}$/i, // клавиатурный набор
+        /^[asdfghjkl]{8,}$/i, // клавиатурный набор
+        /^[zxcvbnm]{8,}$/i, // клавиатурный набор
+        /^test[0-9]{3,}$/i, // test123456
+        /^user[0-9]{3,}$/i, // user123456
+        /^[0-9]{10,}$/, // только цифры 10+ символов
+        /^[bcdfghjklmnpqrstvwxyz]{15,}$/i, // много согласных без гласных
+        /hjklfdsapoiuytrewq|mnbvcxzasdfgh/, // случайный набор букв
     ];
     
-    for (const pattern of spamPatterns) {
-        if (pattern.test(username.toLowerCase())) {
-            console.log(`❌ @${username} отклонен как спам по паттерну: ${pattern}`);
+    // Проверяем на очевидный спам
+    for (const pattern of obviousSpamPatterns) {
+        if (pattern.test(username)) {
+            console.log(`❌ @${username} отклонен как очевидный спам: ${pattern}`);
             return false;
         }
     }
     
-    // Проверяем whitelist популярных/известных аккаунтов
-    const knownAccounts = [
-        // Популярные крипто аккаунты
-        'elonmusk', 'bitcoin', 'ethereum', 'binance', 'coinbase', 'vitalikbuterin',
-        'satoshin', 'cz_binance', 'justinsuntron', 'whale_alert', 'defi_pulse',
+    // 2. Позитивные паттерны (что ПРИНИМАЕМ)
+    const validPatterns = [
+        // Crypto-related имена (очень популярны в Twitter)
+        /^0x[a-zA-Z][a-zA-Z0-9]{3,12}$/i, // 0x + буквы/цифры (как 0xAndrewMoh)
+        /^[a-zA-Z]{2,8}(eth|btc|crypto|nft|defi|web3|sol|ada|dot|bnb)$/i,
+        /^(crypto|bitcoin|eth|nft|defi|web3)[a-zA-Z0-9_]{2,10}$/i,
         
-        // Популярные имена с крипто суффиксами
-        /^[a-z]{2,8}_?(eth|btc|crypto|nft|defi|web3|doge|sol|ada|dot|bnb)$/,
-        /^(crypto|bitcoin|eth|nft|defi|web3)_?[a-z0-9]{2,8}$/,
+        // Обычные имена с цифрами
+        /^[a-zA-Z]{3,12}[0-9]{1,4}$/i, // имя + 1-4 цифры
+        /^[a-zA-Z]{2,8}_[a-zA-Z]{2,8}$/i, // имя_фамилия
+        /^[a-zA-Z]{3,12}_?[0-9]{1,3}$/i, // имя_123
         
-        // Реальные паттерны имен
-        /^[a-z]{3,8}[0-9]{1,4}$/, // имя + 1-4 цифры (john123)
-        /^[a-z]{2,8}_[a-z]{2,8}$/, // имя_фамилия
-        /^real[a-z]{3,10}$/, // real + имя
-        /^[a-z]{3,8}(official|real|the)$/, // имя + official/real/the
+        // Имена с префиксами/суффиксами
+        /^(real|the|mr|ms|dr)[a-zA-Z]{3,12}$/i,
+        /^[a-zA-Z]{3,12}(official|real|jr|sr)$/i,
         
-        // Популярные суффиксы/префиксы
-        /^(mr|ms|dr|prof)[a-z]{3,10}$/, // mr/ms/dr + имя
-        /^[a-z]{3,8}(jr|sr|ii|iii)$/, // имя + jr/sr/ii/iii
+        // Смешанные паттерны
+        /^[a-zA-Z][a-zA-Z0-9_]{4,14}[a-zA-Z0-9]$/i, // начинается и заканчивается буквой/цифрой
     ];
     
-    // Проверяем whitelist
-    for (const account of knownAccounts) {
-        if (typeof account === 'string') {
-            if (username.toLowerCase() === account.toLowerCase()) {
-                console.log(`✅ @${username} найден в whitelist известных аккаунтов`);
-                return true;
-            }
-        } else if (account instanceof RegExp) {
-            if (account.test(username.toLowerCase())) {
-                console.log(`✅ @${username} принят по паттерну whitelist: ${account}`);
-                return true;
-            }
+    // Проверяем позитивные паттерны
+    for (const pattern of validPatterns) {
+        if (pattern.test(username)) {
+            console.log(`✅ @${username} принят по валидному паттерну: ${pattern}`);
+            return true;
         }
     }
     
-    // Дополнительная проверка: если имя содержит распространенные слова
-    const commonWords = ['john', 'mike', 'alex', 'david', 'chris', 'anna', 'maria', 'lisa', 
-                        'crypto', 'bitcoin', 'eth', 'trader', 'investor', 'dev', 'tech'];
+    // 3. Проверка на наличие осмысленных частей
+    const meaningfulParts = [
+        // Популярные имена
+        'alex', 'andrew', 'john', 'mike', 'david', 'chris', 'anna', 'maria', 'lisa', 'sarah',
+        'crypto', 'bitcoin', 'eth', 'trader', 'investor', 'dev', 'tech', 'hodl', 'moon',
+        // Crypto термины
+        'defi', 'nft', 'web3', 'doge', 'shib', 'ada', 'dot', 'sol', 'bnb', 'matic'
+    ];
     
-    const hasCommonWord = commonWords.some(word => 
-        username.toLowerCase().includes(word) && 
-        username.length <= 15 && 
-        !spamPatterns.some(pattern => pattern.test(username.toLowerCase()))
+    const lowerUsername = username.toLowerCase();
+    const hasMeaningfulPart = meaningfulParts.some(part => 
+        lowerUsername.includes(part) && username.length >= 4 && username.length <= 15
     );
     
-    if (hasCommonWord) {
-        console.log(`✅ @${username} принят - содержит распространенное слово`);
+    if (hasMeaningfulPart) {
+        console.log(`✅ @${username} принят - содержит осмысленную часть`);
         return true;
     }
     
-    // Если ничего не подошло - отклоняем
-    console.log(`❌ @${username} отклонен - не прошел whitelist и проверки паттернов`);
+    // 4. Финальная проверка: если имя не слишком странное
+    const isSuspicious = 
+        username.length > 15 || // слишком длинное
+        username.length < 3 || // слишком короткое
+        /^[0-9]+$/.test(username) || // только цифры
+        !/[a-zA-Z]/.test(username); // нет букв вообще
+        
+    if (!isSuspicious) {
+        console.log(`✅ @${username} принят - не выглядит подозрительно`);
+        return true;
+    }
+    
+    console.log(`❌ @${username} отклонен - не прошел все проверки`);
     return false;
 }
+
+// --- ДОПОЛНИТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЧЕРЕЗ МНОЖЕСТВЕННЫЕ API ---
+async function checkTwitterMultipleAPIs(username) {
+    const apis = [
+        {
+            name: 'RapidAPI Twitter API v2',
+            url: `https://twitter-api47.p.rapidapi.com/v2/user/by/username/${username}`,
+            headers: {
+                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+                'X-RapidAPI-Host': 'twitter-api47.p.rapidapi.com'
+            }
+        },
+        {
+            name: 'Twitter API v1',
+            url: `https://twitter-api45.p.rapidapi.com/user.php?username=${username}`,
+            headers: {
+                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+                'X-RapidAPI-Host': 'twitter-api45.p.rapidapi.com'
+            }
+        }
+    ];
+    
+    for (const api of apis) {
+        try {
+            console.log(`🔄 Пробуем ${api.name} для @${username}`);
+            const response = await axios.get(api.url, {
+                headers: api.headers,
+                timeout: 8000
+            });
+            
+            if (response.data && (response.data.username || response.data.data?.username)) {
+                console.log(`✅ @${username} найден через ${api.name}`);
+                return true;
+            }
+        } catch (error) {
+            console.log(`⚠️ ${api.name} недоступен: ${error.response?.status || error.message}`);
+        }
+    }
+    
+    return false;
+}
+   
 
 // --- МАРШРУТЫ API ---
 
