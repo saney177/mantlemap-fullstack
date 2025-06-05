@@ -47,6 +47,79 @@ app.use(cors({
     allowedHeaders: ['Content-Type']
 }));
 
+// --- ДОБАВЛЯЕМ ЭНДПОИНТ ДЛЯ ПОЛУЧЕНИЯ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ ---
+app.get('/api/users', async (req, res) => {
+    try {
+        console.log('Запрос на получение всех пользователей');
+        
+        const users = await User.find({}, {
+            nickname: 1,
+            country: 1,
+            lat: 1,
+            lng: 1,
+            avatar: 1,
+            twitter_username: 1,
+            twitter_profile_url: 1,
+            createdAt: 1
+        }).sort({ createdAt: -1 });
+        
+        console.log(`Найдено ${users.length} пользователей`);
+        
+        res.json({
+            success: true,
+            users: users,
+            count: users.length
+        });
+    } catch (error) {
+        console.error('Ошибка при получении пользователей:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Ошибка при получении списка пользователей',
+            error: error.message 
+        });
+    }
+});
+
+// --- ДОБАВЛЯЕМ БАЗОВЫЙ ЭНДПОИНТ ПРОВЕРКИ ЗДОРОВЬЯ ---
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        service: 'Mantle Map API'
+    });
+});
+
+// --- ДОБАВЛЯЕМ ЭНДПОИНТ ДЛЯ ПОЛУЧЕНИЯ СТАТИСТИКИ ---
+app.get('/api/stats', async (req, res) => {
+    try {
+        const totalUsers = await User.countDocuments();
+        const countryCounts = await User.aggregate([
+            {
+                $group: {
+                    _id: '$country',
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { count: -1 }
+            }
+        ]);
+        
+        res.json({
+            success: true,
+            totalUsers,
+            countryCounts
+        });
+    } catch (error) {
+        console.error('Ошибка при получении статистики:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Ошибка при получении статистики',
+            error: error.message 
+        });
+    }
+});
+
 // --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ПОДПИСКИ НА MANTLE ---
 async function checkIfUserFollowsMantle(userTwitterUsername) {
     const cleanUserTwitterUsername = userTwitterUsername.replace(/^@/, '');
@@ -375,7 +448,7 @@ async function checkRapidAPIStatus() {
     }
 }
 
-// Добавьте эту проверку при запуске сервера
+// --- ЭНДПОИНТ ПРОВЕРКИ RAPIDAPI СТАТУСА ---
 app.get('/api/rapidapi-status', async (req, res) => {
     const status = await checkRapidAPIStatus();
     res.json({ 
@@ -387,6 +460,24 @@ app.get('/api/rapidapi-status', async (req, res) => {
     });
 });
 
+// --- ЭНДПОИНТ ПРОВЕРКИ TWITTER ---
+app.post('/api/check-twitter', async (req, res) => {
+    const { username } = req.body;
+    
+    if (!username) {
+        return res.status(400).json({ message: 'Twitter username не указан.' });
+    }
+    
+    try {
+        const exists = await checkTwitterUsername(username);
+        res.json({ exists, username: username.replace(/^@/, '') });
+    } catch (error) {
+        console.error('Ошибка при проверке Twitter:', error);
+        res.status(500).json({ message: 'Ошибка при проверке Twitter аккаунта.' });
+    }
+});
+
+// --- ЭНДПОИНТ СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ ---
 app.post('/api/users', async (req, res) => {
     const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
     const ipAddress = req.realIP;
@@ -469,23 +560,43 @@ app.post('/api/users', async (req, res) => {
     }
 });
 
-app.post('/api/check-twitter', async (req, res) => {
-    const { username } = req.body;
-    
-    if (!username) {
-        return res.status(400).json({ message: 'Twitter username не указан.' });
-    }
-    
-    try {
-        const exists = await checkTwitterUsername(username);
-        res.json({ exists, username: username.replace(/^@/, '') });
-    } catch (error) {
-        console.error('Ошибка при проверке Twitter:', error);
-        res.status(500).json({ message: 'Ошибка при проверке Twitter аккаунта.' });
-    }
+// --- MIDDLEWARE ДЛЯ ОБРАБОТКИ 404 ---
+app.use('*', (req, res) => {
+    console.log(`404 - Маршрут не найден: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({
+        success: false,
+        message: 'Эндпоинт не найден',
+        path: req.originalUrl,
+        method: req.method,
+        availableEndpoints: [
+            'GET /api/health',
+            'GET /api/users', 
+            'POST /api/users',
+            'GET /api/stats',
+            'POST /api/check-twitter',
+            'GET /api/rapidapi-status'
+        ]
+    });
+});
+
+// --- ГЛОБАЛЬНАЯ ОБРАБОТКА ОШИБОК ---
+app.use((error, req, res, next) => {
+    console.error('Необработанная ошибка:', error);
+    res.status(500).json({
+        success: false,
+        message: 'Внутренняя ошибка сервера',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Что-то пошло не так'
+    });
 });
 
 // --- ЗАПУСК СЕРВЕРА ---
 app.listen(port, () => {
     console.log(`Сервер запущен на порту ${port}`);
+    console.log('Доступные эндпоинты:');
+    console.log('  GET  /api/health        - Проверка здоровья сервера');
+    console.log('  GET  /api/users         - Получить всех пользователей');
+    console.log('  POST /api/users         - Создать нового пользователя');
+    console.log('  GET  /api/stats         - Получить статистику');
+    console.log('  POST /api/check-twitter - Проверить Twitter аккаунт');
+    console.log('  GET  /api/rapidapi-status - Статус RapidAPI');
 });
