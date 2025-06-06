@@ -335,7 +335,6 @@ app.post('/api/users', async (req, res) => {
                 twitter_profile_url: newUser.twitter_profile_url
             }
         });
-    }
 });
 
 // Также добавьте вспомогательную функцию проверки IP:
