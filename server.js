@@ -173,11 +173,6 @@ function enhancedTwitterUsernameWhitelist(username) {
     const strictSpamPatterns = [
         // Случайные буквенные комбинаци
         /^(.)\1{4,}$/,                   // повторяющиеся символы (aaaaa)
-        /^[qwertyuiop]{5,}$/i,           // клавиатурный ряд
-        /^[asdfghjkl]{5,}$/i,            // клавиатурный ряд  
-        /^[zxcvbnm]{5,}$/i,              // клавиатурный ряд
-        /^[qwerty]{5,}$/i,               // части клавиатуры
-        /^[asdfgh]{5,}$/i,               // части клавиатуры
         
         // Тестовые/фейковые аккаунты
         /^test[0-9]{2,}$/i,              // test123456
@@ -191,13 +186,8 @@ function enhancedTwitterUsernameWhitelist(username) {
         /^[a-z][0-9]{6,}$/i,             // буква + много цифр
         
         // Случайные комбинации
-        /^[bcdfghjklmnpqrstvwxyz]{4,}$/i, // только согласные 8+
-        /^[aeiou]{4,}$/i,                // только гласные 6+
-        
-        // Известные спам паттерны
-        /hjkl|asdf|qwer|zxcv|fdsa|rewq|vcxz/i,
-        /abcd|efgh|ijkl|mnop|qrst|uvwx/i,
-        /1234|5678|9012|2345|6789|0123/,
+        /^[bcdfghjklmnpqrstvwxyz]{6,}$/i, // только согласные 8+
+        /^[aeiou]{4,}$/i,                // только гласные 6
         
     ];
     
@@ -213,11 +203,6 @@ function enhancedTwitterUsernameWhitelist(username) {
     const consonants = (username.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length;
     const totalLetters = vowels + consonants;
     
-    // Проверка на "читаемость" username
-    if (totalLetters > 0) {
-        const vowelRatio = vowels / totalLetters;
-        const consonantRatio = consonants / totalLetters;
-        
         // Слишком мало гласных = подозрительно
         if (vowelRatio < 0.1 && totalLetters > 6) {
             console.log(`❌ @${username} - слишком мало гласных (${vowelRatio.toFixed(2)})`);
@@ -230,16 +215,7 @@ function enhancedTwitterUsernameWhitelist(username) {
             return false;
         }
     }
-    
-    // Проверка на повторяющиеся паттерны в username
-    for (let i = 2; i <= Math.floor(username.length / 2); i++) {
-        const pattern = username.substring(0, i);
-        const repeated = pattern.repeat(Math.floor(username.length / i));
-        if (username.startsWith(repeated) && repeated.length >= username.length - 1) {
-            console.log(`❌ @${username} - повторяющийся паттерн: ${pattern}`);
-            return false;
-        }
-    }
+
   
 }
 
