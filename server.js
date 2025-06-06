@@ -272,7 +272,6 @@ app.get('/api/users', async (req, res) => {
 });
 
 // Замените ваш POST /api/users эндпоинт на этот:
-
 app.post('/api/users', async (req, res) => {
     const { nickname, country, lat, lng, avatar, twitter_username, twitter_profile_url } = req.body;
     const ipAddress = req.realIP;
@@ -290,8 +289,31 @@ app.post('/api/users', async (req, res) => {
         return res.status(400).json({ message: 'Twitter username обязателен для регистрации.' });
     }
 
+    try {
+        const cleanTwitterUsername = twitter_username.replace(/^@/, '');
 
-        // 2. Проверка уникальности по IP (ИСПРАВЛЕННАЯ)
+        // 1. ПРОВЕРКА СУЩЕСТВОВАНИЯ TWITTER АККАУНТА (ДОБАВЛЕНО!)
+        console.log(`🔍 Проверяем существование Twitter аккаунта: @${cleanTwitterUsername}`);
+        
+        // Сначала whitelist проверка
+        if (!enhancedTwitterUsernameWhitelist(cleanTwitterUsername)) {
+            return res.status(400).json({ 
+                message: 'Недопустимый формат Twitter username или подозрение на спам.' 
+            });
+        }
+
+        // Затем проверка существования через API
+        const twitterExists = await checkTwitterMultipleAPIs(cleanTwitterUsername);
+        if (!twitterExists) {
+            console.log(`❌ Twitter аккаунт @${cleanTwitterUsername} не существует`);
+            return res.status(404).json({ 
+                message: 'Twitter аккаунт не найден. Убедитесь, что аккаунт существует и написан правильно.' 
+            });
+        }
+
+        console.log(`✅ Twitter аккаунт @${cleanTwitterUsername} подтвержден`);
+
+        // 2. Проверка уникальности по IP
         const ipUnique = await checkIPUniqueness(ipAddress, User);
         if (!ipUnique) {
             return res.status(403).json({ 
@@ -305,7 +327,6 @@ app.post('/api/users', async (req, res) => {
             return res.status(409).json({ message: 'Пользователь с таким никнеймом уже существует.' });
         }
 
-        const cleanTwitterUsername = twitter_username.replace(/^@/, '');
         const existingUserByTwitter = await User.findOne({ twitter_username: cleanTwitterUsername });
         if (existingUserByTwitter) {
             return res.status(409).json({ message: 'Пользователь с таким Twitter аккаунтом уже зарегистрирован.' });
@@ -335,7 +356,13 @@ app.post('/api/users', async (req, res) => {
                 twitter_profile_url: newUser.twitter_profile_url
             }
         });
+
+    } catch (error) {
+        console.error('Ошибка при регистрации пользователя:', error);
+        res.status(500).json({ message: 'Внутренняя ошибка сервера при регистрации.' });
+    }
 });
+
 
 // Также добавьте вспомогательную функцию проверки IP:
 async function checkIPUniqueness(currentIP, User) {
