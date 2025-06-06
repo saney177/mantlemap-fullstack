@@ -236,21 +236,7 @@ async function checkTwitterUsername(username) {
     // 2. Попытка внешней проверки (если whitelist пройден)
     console.log(`✅ @${cleanUsername} прошел whitelist, проверяем внешние источники...`);
   
-    
-    for (const checkMethod of checkMethods) {
-        try {
-            const result = await checkMethod(cleanUsername);
-            if (result) {
-                console.log(`✅ @${cleanUsername} подтвержден внешней проверкой`);
-                return true;
-            }
-        } catch (error) {
-            console.log(`⚠️ Ошибка внешней проверки: ${error.message}`);
-            continue;
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-    }
+  
     
     // 3. Если внешние проверки не сработали, но whitelist строгий прошел - принимаем
     console.log(`✅ @${cleanUsername} принят по строгому whitelist (внешние проверки недоступны)`);
