@@ -198,22 +198,6 @@ function enhancedTwitterUsernameWhitelist(username) {
         }
     }
     
-    // ДОПОЛНИТЕЛЬНАЯ ЭВРИСТИЧЕСКАЯ ПРОВЕРКА
-    const vowels = (username.match(/[aeiou]/gi) || []).length;
-    const consonants = (username.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length;
-    const totalLetters = vowels + consonants;
-    
-        // Слишком мало гласных = подозрительно
-        if (vowelRatio < 0.1 && totalLetters > 6) {
-            console.log(`❌ @${username} - слишком мало гласных (${vowelRatio.toFixed(2)})`);
-            return false;
-        }
-        
-        // Слишком много гласных = подозрительно  
-        if (vowelRatio > 0.7 && totalLetters > 5) {
-            console.log(`❌ @${username} - слишком много гласных (${vowelRatio.toFixed(2)})`);
-            return false;
-        }
     }
 
 // Исправленная проверка IP (точное совпадение)
