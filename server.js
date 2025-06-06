@@ -249,14 +249,7 @@ app.post('/api/users', async (req, res) => {
         console.log(`🔍 Проверяем существование Twitter аккаунта: @${cleanTwitterUsername}`);
       
 
-        // Затем проверка существования через API
-        const twitterExists = await checkTwitterMultipleAPIs(cleanTwitterUsername);
-        if (!twitterExists) {
-            console.log(`❌ Twitter аккаунт @${cleanTwitterUsername} не существует`);
-            return res.status(404).json({ 
-                message: 'Twitter аккаунт не найден. Убедитесь, что аккаунт существует и написан правильно.' 
-            });
-        }
+      
 
         console.log(`✅ Twitter аккаунт @${cleanTwitterUsername} подтвержден`);
 
