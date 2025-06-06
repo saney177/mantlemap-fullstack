@@ -220,7 +220,7 @@ app.get('/api/users', async (req, res) => {
         res.status(200).json(users);
     } catch (error) {
         console.error('Ошибка при получении пользователей из MongoDB:', error);
-        res.status(500).json({ message: 'Внутренняя ошибка сервера при получении пользователей.' });
+        res.status(500).json({ message: 'Internal server error while retrieving users.' });
     }
 });
 
@@ -234,12 +234,12 @@ app.post('/api/users', async (req, res) => {
     // Валидация обязательных полей
     if (!nickname || !country || lat === undefined || lng === undefined) {
         console.warn('Отсутствуют обязательные поля:', { nickname, country, lat, lng });
-        return res.status(400).json({ message: 'Отсутствуют обязательные поля (никнейм, страна или координаты).' });
+        return res.status(400).json({ message: 'Missing mandatory fields (nickname, country or coordinates).' });
     }
 
     // Проверка Twitter username
     if (!twitter_username || twitter_username.trim() === '') {
-        return res.status(400).json({ message: 'Twitter username обязателен для регистрации.' });
+        return res.status(400).json({ message: 'Twitter username is required for registration.' });
     }
 
     try {
@@ -257,19 +257,19 @@ app.post('/api/users', async (req, res) => {
         const ipUnique = await checkIPUniqueness(ipAddress, User);
         if (!ipUnique) {
             return res.status(403).json({ 
-                message: 'С этого IP-адреса уже зарегистрирован аккаунт. Разрешен только один аккаунт на IP-адрес.' 
+                message: 'There is already an account registered from this IP address. Only one account per IP address is allowed.' 
             });
         }
 
         // 3. Проверка уникальности nickname и twitter_username
         const existingUserByNickname = await User.findOne({ nickname });
         if (existingUserByNickname) {
-            return res.status(409).json({ message: 'Пользователь с таким никнеймом уже существует.' });
+            return res.status(409).json({ message: 'A user with this nickname already exists.' });
         }
 
         const existingUserByTwitter = await User.findOne({ twitter_username: cleanTwitterUsername });
         if (existingUserByTwitter) {
-            return res.status(409).json({ message: 'Пользователь с таким Twitter аккаунтом уже зарегистрирован.' });
+            return res.status(409).json({ message: 'A user with this nickname already exists.' });
         }
 
         // 4. Создание нового пользователя
@@ -288,7 +288,7 @@ app.post('/api/users', async (req, res) => {
         console.log(`✅ Пользователь ${nickname} (@${cleanTwitterUsername}) из ${country} успешно зарегистрирован! IP: ${ipAddress}`);
         
         res.status(201).json({
-            message: 'Пользователь успешно зарегистрирован!',
+            message: 'The user has been successfully registered!',
             user: {
                 nickname: newUser.nickname,
                 country: newUser.country,
@@ -299,7 +299,7 @@ app.post('/api/users', async (req, res) => {
 
     } catch (error) {
         console.error('Ошибка при регистрации пользователя:', error);
-        res.status(500).json({ message: 'Внутренняя ошибка сервера при регистрации.' });
+        res.status(500).json({ message: 'Internal server error during registration.' });
     }
 });
 
@@ -331,7 +331,7 @@ app.post('/api/check-twitter', async (req, res) => {
     const { username } = req.body;
     
     if (!username) {
-        return res.status(400).json({ message: 'Twitter username не указан.' });
+        return res.status(400).json({ message: 'Twitter username not specified.' });
     }
     
     try {
@@ -339,7 +339,7 @@ app.post('/api/check-twitter', async (req, res) => {
         res.json({ exists, username: username.replace(/^@/, '') });
     } catch (error) {
         console.error('Ошибка при проверке Twitter:', error);
-        res.status(500).json({ message: 'Ошибка при проверке Twitter аккаунта.' });
+        res.status(500).json({ message: 'Error verifying Twitter account.' });
     }
 });
 
