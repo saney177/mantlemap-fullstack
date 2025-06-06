@@ -290,16 +290,6 @@ app.post('/api/users', async (req, res) => {
         return res.status(400).json({ message: 'Twitter username обязателен для регистрации.' });
     }
 
-    try {
-        // 1. Проверка существования Twitter аккаунта (СТРОГАЯ)
-        console.log(`🔍 Строгая проверка Twitter аккаунта: @${twitter_username}`);
-        const twitterExists = await checkTwitterUsername(twitter_username);
-        
-        if (!twitterExists) {
-            return res.status(400).json({ 
-                message: 'Twitter username не прошел проверку. Используйте реальный Twitter аккаунт.' 
-            });
-        }
 
         // 2. Проверка уникальности по IP (ИСПРАВЛЕННАЯ)
         const ipUnique = await checkIPUniqueness(ipAddress, User);
