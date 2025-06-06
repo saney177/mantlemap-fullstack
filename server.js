@@ -47,102 +47,89 @@ app.use(cors({
     allowedHeaders: ['Content-Type']
 }));
 
-// --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ПОДПИСКИ НА MANTLE ---
-async function checkIfUserFollowsMantle(userTwitterUsername) {
-    const cleanUserTwitterUsername = userTwitterUsername.replace(/^@/, '');
-    const mantleOfficialScreenName = 'Mantle_Official';
 
-    console.log(`🔍 Проверяем, подписан ли @${cleanUserTwitterUsername} на @${mantleOfficialScreenName}`);
-
-    if (!process.env.RAPIDAPI_KEY) {
-        console.warn('⚠️ RapidAPI ключ не настроен. Проверка подписки пропущена.');
-        return false;
-    }
-
-    try {
-        const url = `https://twitter-api45.p.rapidapi.com/checkfollow.php?user=${cleanUserTwitterUsername}&follows=${mantleOfficialScreenName}`;
-        
-        const options = {
-            method: 'GET',
-            headers: {
-                'x-rapidapi-key': process.env.RAPIDAPI_KEY,
-                'x-rapidapi-host': 'twitter-api45.p.rapidapi.com'
-            },
-            timeout: 8000
-        };
-
-        const response = await axios(url, options);
-        const result = response.data;
-
-        if (result && typeof result.is_follow === 'boolean') {
-            if (result.is_follow === true) {
-                console.log(`✅ @${cleanUserTwitterUsername} подписан на @${mantleOfficialScreenName}`);
-                return true;
-            } else {
-                console.log(`❌ @${cleanUserTwitterUsername} НЕ подписан на @${mantleOfficialScreenName}`);
-                return false;
-            }
-        } else {
-            console.warn(`⚠️ Неожиданный формат ответа от RapidAPI:`, result);
-            return false;
-        }
-
-    } catch (error) {
-        console.error(`Ошибка при проверке подписки:`, error.response?.status, error.response?.data?.message || error.message);
-        return false;
-    }
-}
 
 // --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ СУЩЕСТВОВАНИЯ TWITTER АККАУНТА ---
+const axios = require('axios');
+
+// Локальный кэш (на время жизни приложения)
+const usernameCache = {};
+
+// Список Nitter зеркал
+const nitterInstances = [
+    'https://nitter.net',
+    'https://nitter.privacydev.net',
+    'https://nitter.poast.org',
+    'https://nitter.kavin.rocks'
+];
+
 async function checkTwitterUsername(username) {
-    if (!username || username.trim() === '') {
-        return false;
+    if (!username || typeof username !== 'string') return false;
+
+    const cleanUsername = username.trim().replace(/^@/, '').toLowerCase();
+
+    if (usernameCache[cleanUsername] !== undefined) {
+        console.log(`📦 Взято из кэша: @${cleanUsername} → ${usernameCache[cleanUsername]}`);
+        return usernameCache[cleanUsername];
     }
 
-    const cleanUsername = username.replace(/^@/, '');
     console.log(`🔍 Проверяем Twitter аккаунт: @${cleanUsername}`);
-    
-    // Проверка через множественные API
-    const apiCheckResult = await checkTwitterMultipleAPIs(cleanUsername);
-    if (apiCheckResult) {
-        return true;
+
+    // Попробуем все зеркала Nitter
+    for (const instance of nitterInstances) {
+        try {
+            const url = `${instance}/${cleanUsername}`;
+            const response = await axios.get(url, {
+                timeout: 5000,
+                validateStatus: status => status < 500
+            });
+
+            if (response.status === 200 &&
+                !response.data.includes("User not found") &&
+                !response.data.includes("Nothing here") &&
+                !response.data.includes("502 Bad Gateway")) {
+                console.log(`✅ Найден через Nitter: ${url}`);
+                usernameCache[cleanUsername] = true;
+                return true;
+            }
+        } catch (error) {
+            console.log(`⚠️ Ошибка при проверке ${instance}: ${error.message}`);
+        }
     }
 
-    // Проверка через Nitter
+    // Попробуем напрямую через Twitter
     try {
-        const publicResponse = await axios.get(`https://nitter.net/${cleanUsername}`, {
+        const twitterUrl = `https://twitter.com/${cleanUsername}`;
+        const response = await axios.get(twitterUrl, {
             timeout: 5000,
-            validateStatus: function (status) {
-                return status < 500;
+            validateStatus: status => status < 500,
+            headers: {
+                'User-Agent': 'Mozilla/5.0'
             }
         });
-        
-        if (publicResponse.status === 200) {
-            console.log(`✅ Twitter аккаунт @${cleanUsername} найден через Nitter`);
+
+        if (response.status === 200 &&
+            !response.data.includes("This account doesn’t exist") &&
+            !response.data.includes("Account suspended")) {
+            console.log(`✅ Найден через twitter.com`);
+            usernameCache[cleanUsername] = true;
             return true;
         }
     } catch (error) {
-        console.log(`⚠️ Nitter недоступен для @${cleanUsername}: ${error.message}`);
+        console.log(`⚠️ Ошибка при доступе к twitter.com: ${error.message}`);
     }
-    
-    // Проверка через прямой URL Twitter
-    try {
-        const twitterResponse = await axios.get(`https://twitter.com/${cleanUsername}`, {
-            timeout: 5000,
-            validateStatus: function (status) {
-                return status < 500;
-            },
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-        });
-        
-        if (twitterResponse.status === 200 && 
-            !twitterResponse.data.includes('This account doesn\'t exist') &&
-            !twitterResponse.data.includes('Account suspended')) {
-            console.log(`✅ Twitter аккаунт @${cleanUsername} найден через прямую проверку`);
-            return true;
-        }
+
+    console.log(`❌ Аккаунт @${cleanUsername} не найден`);
+    usernameCache[cleanUsername] = false;
+    return false;
+}
+
+
+
+
+
+
+
     } catch (error) {
         console.log(`⚠️ Прямая проверка Twitter недоступна для @${cleanUsername}: ${error.message}`);
     }
