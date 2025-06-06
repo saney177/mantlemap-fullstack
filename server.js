@@ -122,16 +122,6 @@ async function checkTwitterUsername(username) {
     usernameCache[cleanUsername] = false;
     return false;
 }
-
-
-
-
-
-
-
-   catch (error) {
-        console.log(`⚠️ Прямая проверка Twitter недоступна для @${cleanUsername}: ${error.message}`);
-    }
     
     // Последняя проверка через whitelist
     return checkTwitterUsernameWhitelist(cleanUsername);
