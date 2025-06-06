@@ -207,12 +207,7 @@ async function checkTwitterUsername(username) {
     
     // 2. Попытка внешней проверки (если whitelist пройден)
     console.log(`✅ @${cleanUsername} прошел whitelist, проверяем внешние источники...`);
-  
-  
-    
-    // 3. Если внешние проверки не сработали, но whitelist строгий прошел - принимаем
-    console.log(`✅ @${cleanUsername} принят по строгому whitelist (внешние проверки недоступны)`);
-    return true;
+
 }
 // --- ФУНКЦИЯ ПРОВЕРКИ ЧЕРЕЗ МНОЖЕСТВЕННЫЕ API ---
 async function checkTwitterMultipleAPIs(username) {
