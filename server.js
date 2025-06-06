@@ -167,17 +167,11 @@ function enhancedTwitterUsernameWhitelist(username) {
         console.log(`❌ @${username} - недопустимые символы`);
         return false;
     }
-    
-    // Не может начинаться с цифры или подчеркивания
-    if (/^[0-9_]/.test(username)) {
-        console.log(`❌ @${username} - начинается с цифры или _`);
-        return false;
-    }
+  
     
     // СТРОГИЕ ПРОВЕРКИ НА СПАМ (расширенный список)
     const strictSpamPatterns = [
-        // Случайные буквенные комбинации
-        /^[a-z]{8,}$/i,                  // 8+ букв подряд без цифр/underscore
+        // Случайные буквенные комбинаци
         /^(.)\1{4,}$/,                   // повторяющиеся символы (aaaaa)
         /^[qwertyuiop]{5,}$/i,           // клавиатурный ряд
         /^[asdfghjkl]{5,}$/i,            // клавиатурный ряд  
@@ -193,21 +187,18 @@ function enhancedTwitterUsernameWhitelist(username) {
         /^bot[a-z0-9]{2,}$/i,            // bot...
         
         // Только цифры или только цифры с буквами
-        /^[0-9]{6,}$/,                   // только цифры 6+
+        /^[0-9]{4,}$/,                   // только цифры 6+
         /^[a-z][0-9]{6,}$/i,             // буква + много цифр
         
         // Случайные комбинации
-        /^[bcdfghjklmnpqrstvwxyz]{8,}$/i, // только согласные 8+
-        /^[aeiou]{6,}$/i,                // только гласные 6+
-        /__{2,}/,                        // множественные подчеркивания
+        /^[bcdfghjklmnpqrstvwxyz]{4,}$/i, // только согласные 8+
+        /^[aeiou]{4,}$/i,                // только гласные 6+
         
         // Известные спам паттерны
         /hjkl|asdf|qwer|zxcv|fdsa|rewq|vcxz/i,
         /abcd|efgh|ijkl|mnop|qrst|uvwx/i,
         /1234|5678|9012|2345|6789|0123/,
         
-        // Слишком случайные комбинации (эвристика)
-        /^[a-z]{3}[a-z]{3}[a-z]{3,}$/i,  // три группы по 3+ букв без логики
     ];
     
     for (const pattern of strictSpamPatterns) {
@@ -249,60 +240,7 @@ function enhancedTwitterUsernameWhitelist(username) {
             return false;
         }
     }
-    
-    // ПОЗИТИВНЫЕ ПАТТЕРНЫ (более строгие)
-    const validPatterns = [
-        // Crypto/Web3 паттерны (строже)
-        /^(crypto|bitcoin|eth|btc|nft|defi|web3|doge|ada|sol|bnb|matic)[a-zA-Z0-9_]{1,6}$/i,
-        /^[a-zA-Z]{2,6}(crypto|coin|trader|hodl|moon)$/i,
-        /^0x[a-fA-F0-9]{4,8}$/,          // Ethereum адреса (строже)
-        
-        // Имена с цифрами (более реалистичные)
-        /^[a-zA-Z]{3,8}[0-9]{1,3}$/,     // name123 (не больше 3 цифр)
-        /^[a-zA-Z]{2,6}_[a-zA-Z]{2,6}$/, // first_last
-        /^[a-zA-Z]{3,8}_[0-9]{1,2}$/,    // name_1 (не больше 2 цифр)
-        
-        // Профессиональные (строже)
-        /^(real|official|team)_?[a-zA-Z]{2,8}$/i,
-        /^[a-zA-Z]{2,8}_(official|real|team)$/i,
-    ];
-    
-    for (const pattern of validPatterns) {
-        if (pattern.test(username)) {
-            console.log(`✅ @${username} принят по строгому валидному паттерну: ${pattern}`);
-            return true;
-        }
-    }
-    
-    // Проверка на известные имена и осмысленные слова (СТРОЖЕ)
-    const meaningfulWords = [
-        // Популярные имена
-        'alex', 'andrew', 'john', 'mike', 'david', 'chris', 'anna', 'maria', 'lisa', 'sarah',
-        'tom', 'bob', 'nick', 'dan', 'sam', 'joe', 'ben', 'max', 'leo', 'ian', 'kim', 'amy',
-        'james', 'robert', 'mary', 'patricia', 'jennifer', 'linda', 'elizabeth', 'barbara',
-        
-        // Crypto термины (популярные)
-        'crypto', 'bitcoin', 'eth', 'btc', 'trader', 'hodl', 'moon', 'defi', 'nft', 'web3',
-        'doge', 'shib', 'ada', 'sol', 'bnb', 'matic', 'avax', 'dot', 'link', 'uni',
-        
-        // Общие осмысленные слова
-        'love', 'life', 'world', 'real', 'official', 'team', 'pro', 'master', 'king', 'queen',
-    ];
-    
-    const lowerUsername = username.toLowerCase();
-    
-    // Проверяем точные совпадения или четкие включения
-    for (const word of meaningfulWords) {
-        if (lowerUsername === word || 
-            (lowerUsername.includes(word) && word.length >= 4 && 
-             (lowerUsername.startsWith(word) || lowerUsername.endsWith(word)))) {
-            console.log(`✅ @${username} принят - содержит осмысленное слово: ${word}`);
-            return true;
-        }
-    }
-    
-    console.log(`❌ @${username} отклонен - не прошел строгие проверки`);
-    return false;
+  
 }
 
 // Исправленная проверка IP (точное совпадение)
@@ -385,7 +323,7 @@ async function checkTwitterMultipleAPIs(username) {
             name: 'RapidAPI Twitter API v2',
             url: `https://twitter-api47.p.rapidapi.com/v2/user/by/username/${username}`,
             headers: {
-                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+                'X-RapidAPI-Key': '4c37bfb142msha60bba1788f9aebp1c756ejsn6d6b4f478307',
                 'X-RapidAPI-Host': 'twitter-api47.p.rapidapi.com'
             }
         },
@@ -393,7 +331,7 @@ async function checkTwitterMultipleAPIs(username) {
             name: 'Twitter API v1',
             url: `https://twitter-api45.p.rapidapi.com/user.php?username=${username}`,
             headers: {
-                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+                'X-RapidAPI-Key': '4c37bfb142msha60bba1788f9aebp1c756ejsn6d6b4f478307',
                 'X-RapidAPI-Host': 'twitter-api45.p.rapidapi.com'
             }
         }
