@@ -50,7 +50,6 @@ app.use(cors({
 
 
 // --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ СУЩЕСТВОВАНИЯ TWITTER АККАУНТА ---
-const axios = require('axios');
 
 // Локальный кэш (на время жизни приложения)
 const usernameCache = {};
