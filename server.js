@@ -125,7 +125,6 @@ async function checkTwitterUsername(username) {
     
     // Последняя проверка через whitelist
     return checkTwitterUsernameWhitelist(cleanUsername);
-}
 
 // --- ФУНКЦИЯ WHITELIST ПРОВЕРКИ ---
 // Исправленная функция whitelist с более строгими правилами
