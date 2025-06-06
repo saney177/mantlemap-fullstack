@@ -231,12 +231,7 @@ async function checkTwitterUsername(username) {
 
     const cleanUsername = username.replace(/^@/, '');
     console.log(`🔍 Строгая проверка Twitter аккаунта: @${cleanUsername}`);
-    
-    // 1. СТРОГАЯ whitelist проверка (главный фильтр)
-    if (!enhancedTwitterUsernameWhitelist(cleanUsername)) {
-        console.log(`❌ @${cleanUsername} отклонен строгой whitelist проверкой`);
-        return false;
-    }
+  
     
     // 2. Попытка внешней проверки (если whitelist пройден)
     console.log(`✅ @${cleanUsername} прошел whitelist, проверяем внешние источники...`);
