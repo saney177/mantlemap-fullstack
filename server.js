@@ -247,13 +247,7 @@ app.post('/api/users', async (req, res) => {
 
         // 1. ПРОВЕРКА СУЩЕСТВОВАНИЯ TWITTER АККАУНТА (ДОБАВЛЕНО!)
         console.log(`🔍 Проверяем существование Twitter аккаунта: @${cleanTwitterUsername}`);
-        
-        // Сначала whitelist проверка
-        if (!enhancedTwitterUsernameWhitelist(cleanTwitterUsername)) {
-            return res.status(400).json({ 
-                message: 'Недопустимый формат Twitter username или подозрение на спам.' 
-            });
-        }
+      
 
         // Затем проверка существования через API
         const twitterExists = await checkTwitterMultipleAPIs(cleanTwitterUsername);
