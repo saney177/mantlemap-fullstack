@@ -93,188 +93,325 @@ async function checkIfUserFollowsMantle(userTwitterUsername) {
     }
 }
 
-// --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ СУЩЕСТВОВАНИЯ TWITTER АККАУНТА ---
+// Замените существующую функцию checkTwitterUsername на эту:
+
 async function checkTwitterUsername(username) {
     if (!username || username.trim() === '') {
         return false;
     }
 
     const cleanUsername = username.replace(/^@/, '');
-    console.log(`🔍 Проверяем Twitter аккаунт: @${cleanUsername}`);
+    console.log(`🔍 Комплексная проверка Twitter аккаунта: @${cleanUsername}`);
     
-    // Проверка через множественные API
-    const apiCheckResult = await checkTwitterMultipleAPIs(cleanUsername);
-    if (apiCheckResult) {
-        return true;
+    // 1. Сначала базовая whitelist проверка
+    if (!enhancedTwitterUsernameWhitelist(cleanUsername)) {
+        console.log(`❌ @${cleanUsername} не прошел whitelist проверку`);
+        return false;
     }
-
-    // Проверка через Nitter
-    try {
-        const publicResponse = await axios.get(`https://nitter.net/${cleanUsername}`, {
-            timeout: 5000,
-            validateStatus: function (status) {
-                return status < 500;
+    
+    // 2. Затем попытка проверки через внешние источники
+    const checkMethods = [
+        checkTwitterThroughMirrors,
+        checkTwitterThroughSearch,
+        checkTwitterThroughArchives,
+        checkTwitterThroughSocialAggregators
+    ];
+    
+    for (const checkMethod of checkMethods) {
+        try {
+            const result = await checkMethod(cleanUsername);
+            if (result) {
+                console.log(`✅ @${cleanUsername} подтвержден внешней проверкой`);
+                return true;
             }
-        });
-        
-        if (publicResponse.status === 200) {
-            console.log(`✅ Twitter аккаунт @${cleanUsername} найден через Nitter`);
-            return true;
+        } catch (error) {
+            console.log(`⚠️ Ошибка в методе проверки: ${error.message}`);
+            continue;
         }
-    } catch (error) {
-        console.log(`⚠️ Nitter недоступен для @${cleanUsername}: ${error.message}`);
+        
+        // Небольшая задержка между запросами
+        await new Promise(resolve => setTimeout(resolve, 500));
     }
     
-    // Проверка через прямой URL Twitter
+    // Если внешние проверки не сработали, но whitelist прошел - принимаем
+    console.log(`⚠️ @${cleanUsername} принят только по whitelist (внешние проверки недоступны)`);
+    return true;
+}
+
+// Добавьте эти новые функции в ваш server.js:
+
+// 1. Проверка через публичные зеркала и прокси
+async function checkTwitterThroughMirrors(username) {
+    const cleanUsername = username.replace(/^@/, '');
+    console.log(`🔍 Проверяем @${cleanUsername} через публичные зеркала`);
+    
+    const mirrors = [
+        `https://nitter.net/${cleanUsername}`,
+        `https://nitter.it/${cleanUsername}`,
+        `https://nitter.pussthecat.org/${cleanUsername}`,
+        `https://nitter.fdn.fr/${cleanUsername}`,
+        `https://nitter.1d4.us/${cleanUsername}`,
+        `https://bird.makeup/users/${cleanUsername}`,
+    ];
+    
+    for (const mirror of mirrors) {
+        try {
+            const response = await axios.get(mirror, {
+                timeout: 8000,
+                validateStatus: (status) => status < 500,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                    'Accept-Encoding': 'gzip, deflate',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                }
+            });
+            
+            if (response.status === 200) {
+                const content = response.data.toLowerCase();
+                
+                // Проверяем, что это не страница ошибки
+                if (!content.includes('user not found') && 
+                    !content.includes('account suspended') &&
+                    !content.includes('does not exist') &&
+                    !content.includes('not found') &&
+                    !content.includes('error') &&
+                    (content.includes('tweets') || content.includes('following') || content.includes('followers'))) {
+                    console.log(`✅ @${cleanUsername} найден через ${mirror}`);
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.log(`⚠️ ${mirror} недоступен: ${error.message}`);
+            continue;
+        }
+    }
+    
+    return false;
+}
+
+// 2. Проверка через поиск в поисковых системах
+async function checkTwitterThroughSearch(username) {
+    const cleanUsername = username.replace(/^@/, '');
+    console.log(`🔍 Проверяем @${cleanUsername} через поисковые системы`);
+    
     try {
-        const twitterResponse = await axios.get(`https://twitter.com/${cleanUsername}`, {
-            timeout: 5000,
-            validateStatus: function (status) {
-                return status < 500;
+        // Проверка через DuckDuckGo
+        const searchQuery = `site:twitter.com ${cleanUsername}`;
+        const duckResponse = await axios.get(`https://html.duckduckgo.com/html/`, {
+            params: {
+                q: searchQuery,
             },
+            timeout: 10000,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
         });
         
-        if (twitterResponse.status === 200 && 
-            !twitterResponse.data.includes('This account doesn\'t exist') &&
-            !twitterResponse.data.includes('Account suspended')) {
-            console.log(`✅ Twitter аккаунт @${cleanUsername} найден через прямую проверку`);
+        if (duckResponse.data.includes(`twitter.com/${cleanUsername}`) || 
+            duckResponse.data.includes(`@${cleanUsername}`)) {
+            console.log(`✅ @${cleanUsername} найден через DuckDuckGo`);
             return true;
         }
     } catch (error) {
-        console.log(`⚠️ Прямая проверка Twitter недоступна для @${cleanUsername}: ${error.message}`);
+        console.log(`⚠️ Поиск через DuckDuckGo недоступен: ${error.message}`);
     }
     
-    // Последняя проверка через whitelist
-    return checkTwitterUsernameWhitelist(cleanUsername);
+    return false;
 }
 
-// --- ФУНКЦИЯ WHITELIST ПРОВЕРКИ ---
-function checkTwitterUsernameWhitelist(username) {
-    console.log(`🔍 Запуск whitelist проверки для @${username}`);
+// 3. Проверка через архивы и кэши
+async function checkTwitterThroughArchives(username) {
+    const cleanUsername = username.replace(/^@/, '');
+    console.log(`🔍 Проверяем @${cleanUsername} через архивы`);
     
-    // Очевидно поддельные паттерны
-    const obviousSpamPatterns = [
-        /^[a-z]{15,}$/,
-        /^(.)\1{6,}$/,
-        /^[qwertyuiop]{8,}$/i,
-        /^[asdfghjkl]{8,}$/i,
-        /^[zxcvbnm]{8,}$/i,
-        /^test[0-9]{3,}$/i,
-        /^user[0-9]{3,}$/i,
-        /^[0-9]{10,}$/,
-        /^[bcdfghjklmnpqrstvwxyz]{15,}$/i,
-        /hjklfdsapoiuytrewq|mnbvcxzasdfgh/,
+    const archiveUrls = [
+        `https://web.archive.org/web/*/https://twitter.com/${cleanUsername}`,
+        `https://archive.today/*/https://twitter.com/${cleanUsername}`,
     ];
     
-    for (const pattern of obviousSpamPatterns) {
+    for (const archiveUrl of archiveUrls) {
+        try {
+            const response = await axios.get(archiveUrl, {
+                timeout: 10000,
+                validateStatus: (status) => status < 500,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+                }
+            });
+            
+            if (response.status === 200 && response.data.includes('snapshots')) {
+                console.log(`✅ @${cleanUsername} найден в архивах`);
+                return true;
+            }
+        } catch (error) {
+            console.log(`⚠️ Архив недоступен: ${error.message}`);
+            continue;
+        }
+    }
+    
+    return false;
+}
+
+// 4. Проверка через социальные агрегаторы
+async function checkTwitterThroughSocialAggregators(username) {
+    const cleanUsername = username.replace(/^@/, '');
+    console.log(`🔍 Проверяем @${cleanUsername} через социальные агрегаторы`);
+    
+    const aggregators = [
+        `https://www.socialblade.com/twitter/user/${cleanUsername}`,
+        `https://twitonomy.com/profile.php?sn=${cleanUsername}`,
+    ];
+    
+    for (const aggregator of aggregators) {
+        try {
+            const response = await axios.get(aggregator, {
+                timeout: 8000,
+                validateStatus: (status) => status < 500,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+            
+            if (response.status === 200) {
+                const content = response.data.toLowerCase();
+                if (!content.includes('not found') && 
+                    !content.includes('error') &&
+                    !content.includes('does not exist') &&
+                    (content.includes('followers') || content.includes('tweets') || content.includes('statistics'))) {
+                    console.log(`✅ @${cleanUsername} найден через агрегатор`);
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.log(`⚠️ Агрегатор недоступен: ${error.message}`);
+            continue;
+        }
+    }
+    
+    return false;
+}
+
+// 5. Обновленная функция whitelist
+function enhancedTwitterUsernameWhitelist(username) {
+    console.log(`🔍 Улучшенная whitelist проверка для @${username}`);
+    
+    // Базовые проверки длины и символов
+    if (username.length < 1 || username.length > 15) {
+        console.log(`❌ @${username} - неверная длина (${username.length})`);
+        return false;
+    }
+    
+    // Проверка на допустимые символы Twitter
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        console.log(`❌ @${username} - недопустимые символы`);
+        return false;
+    }
+    
+    // Не может начинаться с цифры или подчеркивания
+    if (/^[0-9_]/.test(username)) {
+        console.log(`❌ @${username} - начинается с цифры или _`);
+        return false;
+    }
+    
+    // Очевидно поддельные паттерны
+    const spamPatterns = [
+        /^[a-z]{15}$/,                    // 15 букв подряд
+        /^(.)\1{5,}$/,                    // повторяющиеся символы
+        /^[qwertyuiop]{6,}$/i,           // клавиатурный ряд
+        /^[asdfghjkl]{6,}$/i,            // клавиатурный ряд
+        /^[zxcvbnm]{6,}$/i,              // клавиатурный ряд
+        /^test[0-9]{3,}$/i,              // test123456
+        /^user[0-9]{3,}$/i,              // user123456
+        /^[0-9]{8,}$/,                   // только цифры
+        /^[bcdfghjklmnpqrstvwxyz]{10,}$/i, // только согласные
+        /^.*(hjklfdsapoiuytrewq|mnbvcxzasdfgh|qazwsxedc).*$/i, // случайные комбинации
+        /__{2,}/,                        // множественные подчеркивания
+        /^[aeiou]{8,}$/i,               // только гласные
+    ];
+    
+    for (const pattern of spamPatterns) {
         if (pattern.test(username)) {
             console.log(`❌ @${username} отклонен как спам: ${pattern}`);
             return false;
         }
     }
     
-    // Позитивные паттерны
+    // Паттерны вероятно валидных username
     const validPatterns = [
-        /^0x[a-zA-Z][a-zA-Z0-9]{3,12}$/i,
-        /^[a-zA-Z]{2,8}(eth|btc|crypto|nft|defi|web3|sol|ada|dot|bnb)$/i,
-        /^(crypto|bitcoin|eth|nft|defi|web3)[a-zA-Z0-9_]{2,10}$/i,
-        /^[a-zA-Z]{3,12}[0-9]{1,4}$/i,
-        /^[a-zA-Z]{2,8}_[a-zA-Z]{2,8}$/i,
-        /^[a-zA-Z]{3,12}_?[0-9]{1,3}$/i,
-        /^(real|the|mr|ms|dr)[a-zA-Z]{3,12}$/i,
-        /^[a-zA-Z]{3,12}(official|real|jr|sr)$/i,
-        /^[a-zA-Z][a-zA-Z0-9_]{4,14}[a-zA-Z0-9]$/i,
+        // Crypto/Web3 паттерны
+        /^(crypto|bitcoin|eth|btc|nft|defi|web3|doge|ada|sol|bnb|matic|polygon|avax|luna|atom|dot|link|uni|cake|sushi)[a-zA-Z0-9_]{1,8}$/i,
+        /^[a-zA-Z]{2,8}(crypto|coin|trader|hodl|moon|diamond|hands|bull|bear)$/i,
+        /^0x[a-fA-F0-9]{1,10}$/,        // Ethereum-style адреса
+        
+        // Обычные имена с цифрами
+        /^[a-zA-Z]{3,10}[0-9]{1,4}$/,   // name123
+        /^[a-zA-Z]{2,8}_[a-zA-Z]{2,8}$/, // first_last
+        /^[a-zA-Z]{3,12}_?[0-9]{1,3}$/,  // name_1
+        
+        // Профессиональные/официальные
+        /^(real|the|mr|ms|dr|official)[a-zA-Z]{2,10}$/i,
+        /^[a-zA-Z]{2,10}(official|real|jr|sr|ceo|dev|team)$/i,
+        
+        // Обычные имена
+        /^[a-zA-Z][a-zA-Z0-9_]{2,13}[a-zA-Z0-9]$/,
     ];
     
     for (const pattern of validPatterns) {
         if (pattern.test(username)) {
-            console.log(`✅ @${username} принят по валидному паттерну`);
+            console.log(`✅ @${username} принят по валидному паттерну: ${pattern}`);
             return true;
         }
     }
     
-    // Проверка на осмысленные части
-    const meaningfulParts = [
+    // Проверка на наличие осмысленных частей
+    const meaningfulWords = [
+        // Имена
         'alex', 'andrew', 'john', 'mike', 'david', 'chris', 'anna', 'maria', 'lisa', 'sarah',
-        'crypto', 'bitcoin', 'eth', 'trader', 'investor', 'dev', 'tech', 'hodl', 'moon',
-        'defi', 'nft', 'web3', 'doge', 'shib', 'ada', 'dot', 'sol', 'bnb', 'matic'
+        'tom', 'bob', 'nick', 'dan', 'sam', 'joe', 'ben', 'max', 'leo', 'ian', 'kim', 'amy',
+        
+        // Crypto термины
+        'crypto', 'bitcoin', 'eth', 'btc', 'trader', 'investor', 'dev', 'tech', 'hodl', 'moon',
+        'defi', 'nft', 'web3', 'doge', 'shib', 'ada', 'dot', 'sol', 'bnb', 'matic', 'avax',
+        'bull', 'bear', 'diamond', 'hands', 'rocket', 'lambo', 'whale', 'ape', 'gem',
+        
+        // Общие слова
+        'real', 'official', 'team', 'group', 'news', 'info', 'blog', 'fan', 'love', 'life',
+        'world', 'global', 'pro', 'expert', 'master', 'king', 'queen', 'lord', 'boss'
     ];
     
     const lowerUsername = username.toLowerCase();
-    const hasMeaningfulPart = meaningfulParts.some(part => 
-        lowerUsername.includes(part) && username.length >= 4 && username.length <= 15
+    const hasMeaningfulPart = meaningfulWords.some(word => 
+        lowerUsername.includes(word) && username.length >= 4 && username.length <= 15
     );
     
     if (hasMeaningfulPart) {
-        console.log(`✅ @${username} принят - содержит осмысленную часть`);
+        console.log(`✅ @${username} принят - содержит осмысленное слово`);
         return true;
     }
     
-    // Финальная проверка
-    const isSuspicious = 
-        username.length > 15 || 
-        username.length < 3 || 
-        /^[0-9]+$/.test(username) || 
-        !/[a-zA-Z]/.test(username);
-        
-    if (!isSuspicious) {
-        console.log(`✅ @${username} принят - не выглядит подозрительно`);
+    // Финальная эвристическая проверка
+    const vowels = (username.match(/[aeiou]/gi) || []).length;
+    const consonants = (username.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length;
+    const numbers = (username.match(/[0-9]/g) || []).length;
+    const underscores = (username.match(/_/g) || []).length;
+    
+    // Эвристики для "человеческих" username
+    const reasonableVowelRatio = vowels > 0 && vowels / username.length >= 0.15 && vowels / username.length <= 0.6;
+    const hasBalancedChars = consonants > 0 && vowels > 0;
+    const notTooManyNumbers = numbers <= Math.ceil(username.length * 0.4);
+    const notTooManyUnderscores = underscores <= 2;
+    
+    if (reasonableVowelRatio && hasBalancedChars && notTooManyNumbers && notTooManyUnderscores) {
+        console.log(`✅ @${username} принят - проходит эвристические проверки`);
         return true;
     }
     
     console.log(`❌ @${username} отклонен - не прошел все проверки`);
     return false;
 }
-
-// --- ФУНКЦИЯ ПРОВЕРКИ ЧЕРЕЗ МНОЖЕСТВЕННЫЕ API ---
-async function checkTwitterMultipleAPIs(username) {
-    if (!process.env.RAPIDAPI_KEY) {
-        console.log('⚠️ RapidAPI ключ не настроен');
-        return false;
-    }
-
-    const apis = [
-        {
-            name: 'RapidAPI Twitter API v2',
-            url: `https://twitter-api47.p.rapidapi.com/v2/user/by/username/${username}`,
-            headers: {
-                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-                'X-RapidAPI-Host': 'twitter-api47.p.rapidapi.com'
-            }
-        },
-        {
-            name: 'Twitter API v1',
-            url: `https://twitter-api45.p.rapidapi.com/user.php?username=${username}`,
-            headers: {
-                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-                'X-RapidAPI-Host': 'twitter-api45.p.rapidapi.com'
-            }
-        }
-    ];
-    
-    for (const api of apis) {
-        try {
-            console.log(`🔄 Пробуем ${api.name} для @${username}`);
-            const response = await axios.get(api.url, {
-                headers: api.headers,
-                timeout: 8000
-            });
-            
-            if (response.data && (response.data.username || response.data.data?.username)) {
-                console.log(`✅ @${username} найден через ${api.name}`);
-                return true;
-            }
-        } catch (error) {
-            console.log(`⚠️ ${api.name} недоступен: ${error.response?.status || error.message}`);
-        }
-    }
-    
-    return false;
-}
-
 // --- МАРШРУТЫ API ---
 app.get('/', (req, res) => {
     res.send('API Server is running!');
