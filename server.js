@@ -235,14 +235,7 @@ async function checkTwitterUsername(username) {
     
     // 2. Попытка внешней проверки (если whitelist пройден)
     console.log(`✅ @${cleanUsername} прошел whitelist, проверяем внешние источники...`);
-    
-    const checkMethods = [
-        checkTwitterThroughMirrors,
-        // Убираем ненадежные методы временно
-        // checkTwitterThroughSearch,
-        // checkTwitterThroughArchives,
-        // checkTwitterThroughSocialAggregators
-    ];
+  
     
     for (const checkMethod of checkMethods) {
         try {
