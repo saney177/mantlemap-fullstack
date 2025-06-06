@@ -129,7 +129,7 @@ async function checkTwitterUsername(username) {
 
 
 
-    } catch (error) {
+   catch (error) {
         console.log(`⚠️ Прямая проверка Twitter недоступна для @${cleanUsername}: ${error.message}`);
     }
     
