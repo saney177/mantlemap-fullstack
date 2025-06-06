@@ -335,13 +335,6 @@ app.post('/api/users', async (req, res) => {
                 twitter_profile_url: newUser.twitter_profile_url
             }
         });
-
-    } catch (error) {
-        console.error('Ошибка при регистрации:', error.message);
-        return res.status(500).json({ 
-            message: 'Внутренняя ошибка сервера при регистрации пользователя.',
-            details: error.message 
-        });
     }
 });
 
