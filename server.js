@@ -216,9 +216,6 @@ function enhancedTwitterUsernameWhitelist(username) {
         }
     }
 
-  
-}
-
 // Исправленная проверка IP (точное совпадение)
 async function checkIPUniqueness(currentIP, User) {
     console.log(`🔍 Проверяем уникальность IP: ${currentIP}`);
